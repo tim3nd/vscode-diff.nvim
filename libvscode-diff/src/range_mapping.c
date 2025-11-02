@@ -219,7 +219,7 @@ static GroupArray *group_adjacent_detailed_mappings(DetailedLineRangeMapping *it
       // Start new group
       if (result->count >= result->capacity) {
         result->capacity *= 2;
-        Group *new_groups = (Group *)realloc(result->groups, sizeof(Group) * result->capacity);
+        Group *new_groups = (Group *)realloc(result->groups, sizeof(Group) * (size_t)result->capacity);
         if (!new_groups) {
           for (int j = 0; j < result->count; j++) {
             free(result->groups[j].items);
@@ -233,7 +233,7 @@ static GroupArray *group_adjacent_detailed_mappings(DetailedLineRangeMapping *it
 
       current_group = &result->groups[result->count++];
       current_group->items =
-          (DetailedLineRangeMapping *)malloc(sizeof(DetailedLineRangeMapping) * (count - i));
+          (DetailedLineRangeMapping *)malloc(sizeof(DetailedLineRangeMapping) * (size_t)(count - i));
       if (!current_group->items) {
         result->count--;
         break;
@@ -288,7 +288,7 @@ DetailedLineRangeMappingArray *line_range_mapping_from_range_mappings(
 
   // Step 1: Convert each RangeMapping to DetailedLineRangeMapping
   DetailedLineRangeMapping *mapped =
-      (DetailedLineRangeMapping *)malloc(sizeof(DetailedLineRangeMapping) * alignments->count);
+      (DetailedLineRangeMapping *)malloc(sizeof(DetailedLineRangeMapping) * (size_t)alignments->count);
   if (!mapped)
     return NULL;
 
@@ -318,7 +318,7 @@ DetailedLineRangeMappingArray *line_range_mapping_from_range_mappings(
   }
 
   result->mappings =
-      (DetailedLineRangeMapping *)malloc(sizeof(DetailedLineRangeMapping) * groups->count);
+      (DetailedLineRangeMapping *)malloc(sizeof(DetailedLineRangeMapping) * (size_t)groups->count);
   result->count = 0;
   result->capacity = groups->count;
 
@@ -347,7 +347,7 @@ DetailedLineRangeMappingArray *line_range_mapping_from_range_mappings(
     change.modified = line_range_join(first->modified, last->modified);
 
     // Collect all inner changes from group
-    change.inner_changes = (RangeMapping *)malloc(sizeof(RangeMapping) * g->count);
+    change.inner_changes = (RangeMapping *)malloc(sizeof(RangeMapping) * (size_t)g->count);
     if (!change.inner_changes) {
       change.inner_change_count = 0;
     } else {

@@ -53,7 +53,7 @@ static Array2D *array2d_create(int rows, int cols) {
   Array2D *arr = (Array2D *)malloc(sizeof(Array2D));
   arr->rows = rows;
   arr->cols = cols;
-  arr->data = (double *)calloc(rows * cols, sizeof(double));
+  arr->data = (double *)calloc((size_t)(rows * cols), sizeof(double));
   return arr;
 }
 
@@ -242,7 +242,7 @@ SequenceDiffArray *myers_dp_diff_algorithm(const ISequence *seq1, const ISequenc
   SequenceDiffArray *result = (SequenceDiffArray *)malloc(sizeof(SequenceDiffArray));
   result->count = diff_count;
   result->capacity = diff_count;
-  result->diffs = diff_count > 0 ? (SequenceDiff *)malloc(diff_count * sizeof(SequenceDiff)) : NULL;
+  result->diffs = diff_count > 0 ? (SequenceDiff *)malloc((size_t)diff_count * sizeof(SequenceDiff)) : NULL;
 
   s1 = len1 - 1;
   s2 = len2 - 1;
@@ -305,8 +305,8 @@ static IntArray *intarray_create(void) {
   IntArray *arr = (IntArray *)malloc(sizeof(IntArray));
   arr->pos_capacity = 10;
   arr->neg_capacity = 10;
-  arr->positive = (int *)calloc(arr->pos_capacity, sizeof(int));
-  arr->negative = (int *)calloc(arr->neg_capacity, sizeof(int));
+  arr->positive = (int *)calloc((size_t)arr->pos_capacity, sizeof(int));
+  arr->negative = (int *)calloc((size_t)arr->neg_capacity, sizeof(int));
   return arr;
 }
 
@@ -332,8 +332,8 @@ static void intarray_set(IntArray *arr, int idx, int value) {
       int new_cap = arr->neg_capacity * 2;
       while (neg_idx >= new_cap)
         new_cap *= 2;
-      arr->negative = (int *)realloc(arr->negative, new_cap * sizeof(int));
-      memset(arr->negative + arr->neg_capacity, 0, (new_cap - arr->neg_capacity) * sizeof(int));
+      arr->negative = (int *)realloc(arr->negative, (size_t)new_cap * sizeof(int));
+      memset(arr->negative + arr->neg_capacity, 0, (size_t)(new_cap - arr->neg_capacity) * sizeof(int));
       arr->neg_capacity = new_cap;
     }
     arr->negative[neg_idx] = value;
@@ -342,8 +342,8 @@ static void intarray_set(IntArray *arr, int idx, int value) {
       int new_cap = arr->pos_capacity * 2;
       while (idx >= new_cap)
         new_cap *= 2;
-      arr->positive = (int *)realloc(arr->positive, new_cap * sizeof(int));
-      memset(arr->positive + arr->pos_capacity, 0, (new_cap - arr->pos_capacity) * sizeof(int));
+      arr->positive = (int *)realloc(arr->positive, (size_t)new_cap * sizeof(int));
+      memset(arr->positive + arr->pos_capacity, 0, (size_t)(new_cap - arr->pos_capacity) * sizeof(int));
       arr->pos_capacity = new_cap;
     }
     arr->positive[idx] = value;
@@ -387,8 +387,8 @@ static PathArray *patharray_create(void) {
   PathArray *arr = (PathArray *)malloc(sizeof(PathArray));
   arr->pos_capacity = 10;
   arr->neg_capacity = 10;
-  arr->positive = (SnakePath **)calloc(arr->pos_capacity, sizeof(SnakePath *));
-  arr->negative = (SnakePath **)calloc(arr->neg_capacity, sizeof(SnakePath *));
+  arr->positive = (SnakePath **)calloc((size_t)arr->pos_capacity, sizeof(SnakePath *));
+  arr->negative = (SnakePath **)calloc((size_t)arr->neg_capacity, sizeof(SnakePath *));
   return arr;
 }
 
@@ -415,9 +415,9 @@ static void patharray_set(PathArray *arr, int idx, SnakePath *value) {
       int new_cap = arr->neg_capacity * 2;
       while (neg_idx >= new_cap)
         new_cap *= 2;
-      arr->negative = (SnakePath **)realloc(arr->negative, new_cap * sizeof(SnakePath *));
+      arr->negative = (SnakePath **)realloc(arr->negative, (size_t)new_cap * sizeof(SnakePath *));
       memset(arr->negative + arr->neg_capacity, 0,
-             (new_cap - arr->neg_capacity) * sizeof(SnakePath *));
+             (size_t)(new_cap - arr->neg_capacity) * sizeof(SnakePath *));
       arr->neg_capacity = new_cap;
     }
     arr->negative[neg_idx] = value;
@@ -426,9 +426,9 @@ static void patharray_set(PathArray *arr, int idx, SnakePath *value) {
       int new_cap = arr->pos_capacity * 2;
       while (idx >= new_cap)
         new_cap *= 2;
-      arr->positive = (SnakePath **)realloc(arr->positive, new_cap * sizeof(SnakePath *));
+      arr->positive = (SnakePath **)realloc(arr->positive, (size_t)new_cap * sizeof(SnakePath *));
       memset(arr->positive + arr->pos_capacity, 0,
-             (new_cap - arr->pos_capacity) * sizeof(SnakePath *));
+             (size_t)(new_cap - arr->pos_capacity) * sizeof(SnakePath *));
       arr->pos_capacity = new_cap;
     }
     arr->positive[idx] = value;
@@ -584,7 +584,7 @@ SequenceDiffArray *myers_nd_diff_algorithm(const ISequence *seq1, const ISequenc
   SequenceDiffArray *result = (SequenceDiffArray *)malloc(sizeof(SequenceDiffArray));
   result->count = diff_count;
   result->capacity = diff_count;
-  result->diffs = diff_count > 0 ? (SequenceDiff *)malloc(diff_count * sizeof(SequenceDiff)) : NULL;
+  result->diffs = diff_count > 0 ? (SequenceDiff *)malloc((size_t)diff_count * sizeof(SequenceDiff)) : NULL;
 
   // Fill result (in reverse order, then we'll reverse)
   int idx = diff_count - 1;

@@ -55,13 +55,13 @@ static void add_char_highlight(CharHighlightBuilder *builder, int line_num, int 
   }
 
   if (builder->count >= builder->capacity) {
-    size_t new_capacity = builder->capacity == 0 ? 4 : builder->capacity * 2;
+    size_t new_capacity = (size_t)(builder->capacity == 0 ? 4 : builder->capacity * 2);
     CharHighlight *new_highlights =
         (CharHighlight *)realloc(builder->highlights, new_capacity * sizeof(CharHighlight));
     if (!new_highlights)
       return;
     builder->highlights = new_highlights;
-    builder->capacity = new_capacity;
+    builder->capacity = (int)new_capacity;
   }
 
   CharHighlight *hl = &builder->highlights[builder->count++];
@@ -75,7 +75,7 @@ static void add_char_highlight(CharHighlightBuilder *builder, int line_num, int 
  * Create line metadata array for one side.
  */
 static LineMetadata *create_line_metadata_array(int line_count) {
-  LineMetadata *metadata = (LineMetadata *)calloc(line_count, sizeof(LineMetadata));
+  LineMetadata *metadata = (LineMetadata *)calloc((size_t)line_count, sizeof(LineMetadata));
   if (!metadata)
     return NULL;
 
@@ -179,7 +179,7 @@ RenderPlan *generate_render_plan(const LinesDiff *diff, const char **original_li
           // First line: from start_col to end of line
           int first_line_idx = range->original.start_line - 1;
           if (first_line_idx >= 0 && first_line_idx < original_count) {
-            int line_len = strlen(original_lines[first_line_idx]);
+            int line_len = (int)strlen(original_lines[first_line_idx]);
             add_char_highlight(&orig_builder, range->original.start_line, range->original.start_col,
                                line_len + 1, // +1 for 1-based exclusive end
                                HL_CHAR_DELETE);
@@ -189,7 +189,7 @@ RenderPlan *generate_render_plan(const LinesDiff *diff, const char **original_li
           for (int line = range->original.start_line + 1; line < range->original.end_line; line++) {
             int line_idx = line - 1;
             if (line_idx >= 0 && line_idx < original_count) {
-              int line_len = strlen(original_lines[line_idx]);
+              int line_len = (int)strlen(original_lines[line_idx]);
               add_char_highlight(&orig_builder, line, 1, line_len + 1, HL_CHAR_DELETE);
             }
           }
@@ -211,7 +211,7 @@ RenderPlan *generate_render_plan(const LinesDiff *diff, const char **original_li
           // First line: from start_col to end of line
           int first_line_idx = range->modified.start_line - 1;
           if (first_line_idx >= 0 && first_line_idx < modified_count) {
-            int line_len = strlen(modified_lines[first_line_idx]);
+            int line_len = (int)strlen(modified_lines[first_line_idx]);
             add_char_highlight(&mod_builder, range->modified.start_line, range->modified.start_col,
                                line_len + 1, HL_CHAR_INSERT);
           }
@@ -220,7 +220,7 @@ RenderPlan *generate_render_plan(const LinesDiff *diff, const char **original_li
           for (int line = range->modified.start_line + 1; line < range->modified.end_line; line++) {
             int line_idx = line - 1;
             if (line_idx >= 0 && line_idx < modified_count) {
-              int line_len = strlen(modified_lines[line_idx]);
+              int line_len = (int)strlen(modified_lines[line_idx]);
               add_char_highlight(&mod_builder, line, 1, line_len + 1, HL_CHAR_INSERT);
             }
           }
@@ -247,7 +247,7 @@ RenderPlan *generate_render_plan(const LinesDiff *diff, const char **original_li
             meta->char_highlights = (CharHighlight *)malloc(sizeof(CharHighlight));
           } else {
             CharHighlight *new_arr = (CharHighlight *)realloc(
-                meta->char_highlights, (meta->char_highlight_count + 1) * sizeof(CharHighlight));
+                meta->char_highlights, (size_t)(meta->char_highlight_count + 1) * sizeof(CharHighlight));
             if (new_arr) {
               meta->char_highlights = new_arr;
             }
@@ -272,7 +272,7 @@ RenderPlan *generate_render_plan(const LinesDiff *diff, const char **original_li
             meta->char_highlights = (CharHighlight *)malloc(sizeof(CharHighlight));
           } else {
             CharHighlight *new_arr = (CharHighlight *)realloc(
-                meta->char_highlights, (meta->char_highlight_count + 1) * sizeof(CharHighlight));
+                meta->char_highlights, (size_t)(meta->char_highlight_count + 1) * sizeof(CharHighlight));
             if (new_arr) {
               meta->char_highlights = new_arr;
             }

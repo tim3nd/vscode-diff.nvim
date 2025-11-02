@@ -120,7 +120,7 @@ static SequenceDiffArray *join_sequence_diffs_by_shifting(const ISequence *seq1,
   int len2 = seq2->getLength(seq2);
 
   // Result array for first pass (move left)
-  SequenceDiff *result1 = (SequenceDiff *)malloc(diffs->count * sizeof(SequenceDiff));
+  SequenceDiff *result1 = (SequenceDiff *)malloc((size_t)diffs->count * sizeof(SequenceDiff));
   int result1_count = 0;
 
   result1[result1_count++] = diffs->diffs[0];
@@ -152,10 +152,10 @@ static SequenceDiffArray *join_sequence_diffs_by_shifting(const ISequence *seq1,
         }
 
         // Check if shifted position still matches
-        int elem1_start = seq1->getElement(seq1, pos1_start);
-        int elem1_end = seq1->getElement(seq1, pos1_end);
-        int elem2_start = seq2->getElement(seq2, pos2_start);
-        int elem2_end = seq2->getElement(seq2, pos2_end);
+        int elem1_start = (int)seq1->getElement(seq1, pos1_start);
+        int elem1_end = (int)seq1->getElement(seq1, pos1_end);
+        int elem2_start = (int)seq2->getElement(seq2, pos2_start);
+        int elem2_end = (int)seq2->getElement(seq2, pos2_end);
 
         if (elem1_start != elem1_end || elem2_start != elem2_end) {
           break;
@@ -181,7 +181,7 @@ static SequenceDiffArray *join_sequence_diffs_by_shifting(const ISequence *seq1,
   }
 
   // Second pass: Move all diffs right and join if possible
-  SequenceDiff *result2 = (SequenceDiff *)malloc(result1_count * sizeof(SequenceDiff));
+  SequenceDiff *result2 = (SequenceDiff *)malloc((size_t)result1_count * sizeof(SequenceDiff));
   int result2_count = 0;
 
   for (int i = 0; i < result1_count - 1; i++) {
@@ -415,7 +415,7 @@ SequenceDiffArray *remove_short_matches(const ISequence *seq1 __attribute__((unu
     return diffs;
   }
 
-  SequenceDiff *result = (SequenceDiff *)malloc(diffs->count * sizeof(SequenceDiff));
+  SequenceDiff *result = (SequenceDiff *)malloc((size_t)diffs->count * sizeof(SequenceDiff));
   int result_count = 0;
 
   for (int i = 0; i < diffs->count; i++) {
@@ -488,7 +488,7 @@ SequenceDiffArray *remove_very_short_matching_lines_between_diffs(const ISequenc
     should_repeat = false;
 
     // Create result array
-    SequenceDiff *result = malloc(sizeof(SequenceDiff) * diffs->capacity);
+    SequenceDiff *result = malloc(sizeof(SequenceDiff) * (size_t)diffs->capacity);
     int result_count = 0;
 
     // Start with first diff

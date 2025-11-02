@@ -130,7 +130,7 @@ size_t line_trim(char *str) {
   }
 
   // Calculate new length and move if needed
-  size_t new_len = end - start + 1;
+  size_t new_len = (size_t)(end - start + 1);
   if (start != str) {
     memmove(str, start, new_len);
   }
@@ -179,7 +179,7 @@ char *trim_string(const char *str) {
   }
 
   // Allocate and copy
-  size_t len = end - start + 1;
+  size_t len = (size_t)(end - start + 1);
   char *result = (char *)malloc(len + 1);
   if (result) {
     memcpy(result, start, len);
@@ -219,9 +219,9 @@ SequenceDiffArray *sequence_diff_array_create(void) {
 
 void sequence_diff_array_append(SequenceDiffArray *arr, SequenceDiff diff) {
   if (arr->count >= arr->capacity) {
-    size_t new_capacity = arr->capacity == 0 ? 8 : arr->capacity * 2;
+    size_t new_capacity = (size_t)(arr->capacity == 0 ? 8 : arr->capacity * 2);
     arr->diffs = (SequenceDiff *)mem_realloc(arr->diffs, new_capacity * sizeof(SequenceDiff));
-    arr->capacity = new_capacity;
+    arr->capacity = (int)new_capacity;
   }
   arr->diffs[arr->count++] = diff;
 }

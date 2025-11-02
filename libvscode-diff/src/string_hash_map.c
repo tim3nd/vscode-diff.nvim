@@ -55,7 +55,7 @@ StringHashMap *string_hash_map_create(void) {
   StringHashMap *map = (StringHashMap *)malloc(sizeof(StringHashMap));
   map->capacity = INITIAL_CAPACITY;
   map->size = 0;
-  map->buckets = (HashEntry **)calloc(map->capacity, sizeof(HashEntry *));
+  map->buckets = (HashEntry **)calloc((size_t)map->capacity, sizeof(HashEntry *));
   return map;
 }
 
@@ -68,7 +68,7 @@ static void resize_if_needed(StringHashMap *map) {
   }
 
   int new_capacity = map->capacity * 2;
-  HashEntry **new_buckets = (HashEntry **)calloc(new_capacity, sizeof(HashEntry *));
+  HashEntry **new_buckets = (HashEntry **)calloc((size_t)new_capacity, sizeof(HashEntry *));
 
   // Rehash all entries
   for (int i = 0; i < map->capacity; i++) {
@@ -77,7 +77,7 @@ static void resize_if_needed(StringHashMap *map) {
       HashEntry *next = entry->next;
 
       // Recompute bucket for new capacity
-      uint32_t bucket = hash_for_bucket(entry->key) % new_capacity;
+      uint32_t bucket = hash_for_bucket(entry->key) % (uint32_t)new_capacity;
       entry->next = new_buckets[bucket];
       new_buckets[bucket] = entry;
 
@@ -91,7 +91,7 @@ static void resize_if_needed(StringHashMap *map) {
 }
 
 uint32_t string_hash_map_get_or_create(StringHashMap *map, const char *str) {
-  uint32_t bucket = hash_for_bucket(str) % map->capacity;
+  uint32_t bucket = hash_for_bucket(str) % (uint32_t)map->capacity;
 
   // Search for existing entry
   HashEntry *entry = map->buckets[bucket];
@@ -106,11 +106,11 @@ uint32_t string_hash_map_get_or_create(StringHashMap *map, const char *str) {
   resize_if_needed(map);
 
   // Recompute bucket after potential resize
-  bucket = hash_for_bucket(str) % map->capacity;
+  bucket = hash_for_bucket(str) % (uint32_t)map->capacity;
 
   HashEntry *new_entry = (HashEntry *)malloc(sizeof(HashEntry));
   new_entry->key = diff_strdup(str);
-  new_entry->value = map->size; // Sequential: 0, 1, 2, ...
+  new_entry->value = (uint32_t)map->size; // Sequential: 0, 1, 2, ...
   new_entry->next = map->buckets[bucket];
   map->buckets[bucket] = new_entry;
 

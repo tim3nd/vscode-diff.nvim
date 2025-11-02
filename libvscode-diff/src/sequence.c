@@ -75,7 +75,7 @@ static int write_utf8_as_utf16_units(const char *src, int num_utf16_units, uint3
     } else {
       // Non-BMP: 2 UTF-16 code units as surrogate pair (matches JS behavior)
       codepoint -= 0x10000;
-      uint16_t high = 0xD800 + (codepoint >> 10);
+      uint16_t high = (uint16_t)(0xD800 + (codepoint >> 10));
       uint16_t low = 0xDC00 + (codepoint & 0x3FF);
 
       if (utf16_units_written + 1 < num_utf16_units) {
@@ -119,9 +119,9 @@ static char *trim_string(const char *str) {
   }
 
   // Copy trimmed portion
-  int len = end - str;
-  char *result = (char *)malloc(len + 1);
-  memcpy(result, str, len);
+  int len = (int)(end - str);
+  char *result = (char *)malloc((size_t)len + 1);
+  memcpy(result, str, (size_t)len);
   result[len] = '\0';
   return result;
 }
@@ -239,7 +239,7 @@ ISequence *line_sequence_create(const char **lines, int length, bool ignore_whit
   }
 
   // Pre-compute perfect hashes for all lines
-  seq->trimmed_hash = (uint32_t *)malloc(sizeof(uint32_t) * length);
+  seq->trimmed_hash = (uint32_t *)malloc(sizeof(uint32_t) * (size_t)length);
   for (int i = 0; i < length; i++) {
     if (ignore_whitespace) {
       char *trimmed = trim_string(lines[i]);
@@ -499,9 +499,9 @@ ISequence *char_sequence_create_from_range(const char **lines, int line_count,
   seq->consider_whitespace = consider_whitespace;
   seq->line_count = line_span;
   seq->elements = NULL;
-  seq->line_start_offsets = (int *)malloc(sizeof(int) * (line_span + 1));
-  seq->trimmed_ws_lengths = (int *)malloc(sizeof(int) * line_span);
-  seq->original_line_start_cols = (int *)malloc(sizeof(int) * line_span);
+  seq->line_start_offsets = (int *)malloc(sizeof(int) * (size_t)(line_span + 1));
+  seq->trimmed_ws_lengths = (int *)malloc(sizeof(int) * (size_t)line_span);
+  seq->original_line_start_cols = (int *)malloc(sizeof(int) * (size_t)line_span);
   if (!seq->line_start_offsets || !seq->trimmed_ws_lengths || !seq->original_line_start_cols) {
     free(seq->line_start_offsets);
     free(seq->trimmed_ws_lengths);
@@ -510,7 +510,7 @@ ISequence *char_sequence_create_from_range(const char **lines, int line_count,
     return NULL;
   }
 
-  int *effective_lengths = (int *)malloc(sizeof(int) * line_span);
+  int *effective_lengths = (int *)malloc(sizeof(int) * (size_t)line_span);
   if (!effective_lengths) {
     free(seq->line_start_offsets);
     free(seq->trimmed_ws_lengths);
@@ -611,7 +611,7 @@ ISequence *char_sequence_create_from_range(const char **lines, int line_count,
     }
   }
 
-  seq->elements = (uint32_t *)malloc(sizeof(uint32_t) * (total_len + 1));
+  seq->elements = (uint32_t *)malloc(sizeof(uint32_t) * (size_t)(total_len + 1));
   if (!seq->elements) {
     free(effective_lengths);
     free(seq->line_start_offsets);
@@ -896,7 +896,7 @@ char *char_sequence_get_text(const CharSequence *seq, int start_offset, int end_
   }
 
   int len = end_offset - start_offset;
-  char *result = (char *)malloc(len + 1);
+  char *result = (char *)malloc((size_t)len + 1);
   if (!result)
     return NULL;
 

@@ -117,7 +117,7 @@ static LinesDiff* create_full_file_diff(
     result->changes.mappings[0].inner_changes[0].original.end_line = original_count;
     if (original_count > 0) {
         result->changes.mappings[0].inner_changes[0].original.end_col = 
-            strlen(original_lines[original_count - 1]) + 1;
+            (int)strlen(original_lines[original_count - 1]) + 1;
     } else {
         result->changes.mappings[0].inner_changes[0].original.end_col = 1;
     }
@@ -128,7 +128,7 @@ static LinesDiff* create_full_file_diff(
     result->changes.mappings[0].inner_changes[0].modified.end_line = modified_count;
     if (modified_count > 0) {
         result->changes.mappings[0].inner_changes[0].modified.end_col = 
-            strlen(modified_lines[modified_count - 1]) + 1;
+            (int)strlen(modified_lines[modified_count - 1]) + 1;
     } else {
         result->changes.mappings[0].inner_changes[0].modified.end_col = 1;
     }
@@ -283,14 +283,14 @@ static void scan_for_whitespace_changes(
                 for (int j = 0; j < character_diffs->count; j++) {
                     // Grow alignments array if needed
                     if (alignments->count >= alignments->capacity) {
-                        size_t new_capacity = alignments->capacity == 0 ? 8 : alignments->capacity * 2;
+                        size_t new_capacity = (size_t)(alignments->capacity == 0 ? 8 : alignments->capacity * 2);
                         RangeMapping* new_mappings = (RangeMapping*)realloc(
                             alignments->mappings,
                             new_capacity * sizeof(RangeMapping)
                         );
                         if (new_mappings) {
                             alignments->mappings = new_mappings;
-                            alignments->capacity = new_capacity;
+                            alignments->capacity = (int)new_capacity;
                         }
                     }
                     
@@ -435,14 +435,14 @@ LinesDiff* compute_diff(
             // Add all character mappings
             for (int j = 0; j < character_diffs->count; j++) {
                 if (alignments->count >= alignments->capacity) {
-                    size_t new_capacity = alignments->capacity == 0 ? 16 : alignments->capacity * 2;
+                    size_t new_capacity = (size_t)(alignments->capacity == 0 ? 16 : alignments->capacity * 2);
                     RangeMapping* new_mappings = (RangeMapping*)realloc(
                         alignments->mappings,
                         new_capacity * sizeof(RangeMapping)
                     );
                     if (new_mappings) {
                         alignments->mappings = new_mappings;
-                        alignments->capacity = new_capacity;
+                        alignments->capacity = (int)new_capacity;
                     }
                 }
                 

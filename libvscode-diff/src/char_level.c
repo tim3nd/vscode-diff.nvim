@@ -189,7 +189,7 @@ static RangeMappingArray *create_range_mapping_array(int capacity) {
   if (!arr)
     return NULL;
 
-  arr->mappings = (RangeMapping *)malloc(sizeof(RangeMapping) * capacity);
+  arr->mappings = (RangeMapping *)malloc(sizeof(RangeMapping) * (size_t)capacity);
   if (!arr->mappings) {
     free(arr);
     return NULL;
@@ -206,7 +206,7 @@ static RangeMappingArray *create_range_mapping_array(int capacity) {
 static bool grow_range_mapping_array(RangeMappingArray *arr) {
   int new_capacity = arr->capacity * 2;
   RangeMapping *new_mappings =
-      (RangeMapping *)realloc(arr->mappings, sizeof(RangeMapping) * new_capacity);
+      (RangeMapping *)realloc(arr->mappings, sizeof(RangeMapping) * (size_t)new_capacity);
   if (!new_mappings)
     return false;
 
@@ -247,7 +247,7 @@ typedef struct {
 static SequenceDiffArray *invert_diffs(const SequenceDiffArray *diffs, int length1, int length2) {
   SequenceDiffArray *result = (SequenceDiffArray *)malloc(sizeof(SequenceDiffArray));
   result->capacity = diffs->count + 2;
-  result->diffs = (SequenceDiff *)malloc(sizeof(SequenceDiff) * result->capacity);
+  result->diffs = (SequenceDiff *)malloc(sizeof(SequenceDiff) * (size_t)result->capacity);
   result->count = 0;
 
   int prev_end1 = 0;
@@ -285,7 +285,7 @@ static SequenceDiffArray *invert_diffs(const SequenceDiffArray *diffs, int lengt
 static SequenceDiffArray *merge_diffs(SequenceDiffArray *arr1, SequenceDiffArray *arr2) {
   SequenceDiffArray *result = (SequenceDiffArray *)malloc(sizeof(SequenceDiffArray));
   result->capacity = arr1->count + arr2->count;
-  result->diffs = (SequenceDiff *)malloc(sizeof(SequenceDiff) * result->capacity);
+  result->diffs = (SequenceDiff *)malloc(sizeof(SequenceDiff) * (size_t)result->capacity);
   result->count = 0;
 
   int i1 = 0, i2 = 0;
@@ -445,7 +445,7 @@ static void scan_word(ScanWordContext *ctx, int offset1, int offset2,
     if (ctx->additional->count >= ctx->additional->capacity) {
       ctx->additional->capacity *= 2;
       ctx->additional->diffs = (SequenceDiff *)realloc(
-          ctx->additional->diffs, sizeof(SequenceDiff) * ctx->additional->capacity);
+          ctx->additional->diffs, sizeof(SequenceDiff) * (size_t)ctx->additional->capacity);
     }
     ctx->additional->diffs[ctx->additional->count++] = word;
   }
@@ -466,7 +466,7 @@ static SequenceDiffArray *extend_diffs_to_entire_word(const CharSequence *seq1,
   SequenceDiffArray *equal_mappings = invert_diffs(diffs, seq1->length, seq2->length);
   SequenceDiffArray *additional = (SequenceDiffArray *)malloc(sizeof(SequenceDiffArray));
   additional->capacity = 100;
-  additional->diffs = (SequenceDiff *)malloc(sizeof(SequenceDiff) * additional->capacity);
+  additional->diffs = (SequenceDiff *)malloc(sizeof(SequenceDiff) * (size_t)additional->capacity);
   additional->count = 0;
 
   int last_offset1 = 0;
@@ -537,7 +537,7 @@ static SequenceDiffArray *remove_very_short_text(const CharSequence *seq1, const
 
   do {
     should_repeat = false;
-    SequenceDiff *result = (SequenceDiff *)malloc(sizeof(SequenceDiff) * diffs->capacity);
+    SequenceDiff *result = (SequenceDiff *)malloc(sizeof(SequenceDiff) * (size_t)diffs->capacity);
     int result_count = 0;
 
     result[result_count++] = diffs->diffs[0];
@@ -642,7 +642,7 @@ static SequenceDiffArray *remove_very_short_text(const CharSequence *seq1, const
   } while (counter++ < 10 && should_repeat);
 
   // Second phase: Remove short prefixes/suffixes (VSCode's forEachWithNeighbors logic)
-  SequenceDiff *new_diffs = (SequenceDiff *)malloc(sizeof(SequenceDiff) * (diffs->capacity + 10));
+  SequenceDiff *new_diffs = (SequenceDiff *)malloc(sizeof(SequenceDiff) * (size_t)(diffs->capacity + 10));
   int new_count = 0;
 
   for (int i = 0; i < diffs->count; i++) {

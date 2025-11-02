@@ -30,7 +30,7 @@ int utf8_byte_to_column(const char *str, int byte_pos) {
     utf8proc_ssize_t bytes = utf8proc_iterate(ustr + i, -1, &codepoint);
     if (bytes <= 0)
       break;
-    i += bytes;
+    i += (int)bytes;
     column++;
   }
 
@@ -51,7 +51,7 @@ int utf8_column_to_byte(const char *str, int column) {
     utf8proc_ssize_t bytes = utf8proc_iterate(ustr + byte_pos, -1, &codepoint);
     if (bytes <= 0)
       break;
-    byte_pos += bytes;
+    byte_pos += (int)bytes;
     col++;
   }
 
@@ -72,7 +72,7 @@ int utf8_strlen(const char *str) {
     utf8proc_ssize_t bytes = utf8proc_iterate(ustr + i, -1, &codepoint);
     if (bytes <= 0)
       break;
-    i += bytes;
+    i += (int)bytes;
     count++;
   }
 
@@ -116,7 +116,7 @@ uint32_t utf8_decode_char(const char *str, int *byte_pos) {
   if (bytes <= 0)
     return 0;
 
-  *byte_pos += bytes;
+  *byte_pos += (int)bytes;
   return (uint32_t)codepoint;
 }
 
@@ -140,7 +140,7 @@ int utf8_to_utf16_length(const char *str) {
     if (bytes <= 0)
       break;
 
-    i += bytes;
+    i += (int)bytes;
 
     // Count UTF-16 code units for this codepoint
     if (codepoint <= 0xFFFF) {
@@ -169,7 +169,7 @@ uint16_t *utf8_to_utf16(const char *str, int *out_length) {
     return NULL;
 
   // Allocate array
-  uint16_t *utf16 = (uint16_t *)malloc(utf16_len * sizeof(uint16_t));
+  uint16_t *utf16 = (uint16_t *)malloc((size_t)utf16_len * sizeof(uint16_t));
   if (!utf16) {
     *out_length = 0;
     return NULL;
@@ -186,7 +186,7 @@ uint16_t *utf8_to_utf16(const char *str, int *out_length) {
     if (bytes <= 0)
       break;
 
-    i += bytes;
+    i += (int)bytes;
 
     // Encode as UTF-16
     if (codepoint <= 0xFFFF) {
@@ -196,7 +196,7 @@ uint16_t *utf8_to_utf16(const char *str, int *out_length) {
       // Non-BMP: surrogate pair
       // Formula: codepoint = 0x10000 + (H - 0xD800) * 0x400 + (L - 0xDC00)
       // Where H is high surrogate, L is low surrogate
-      uint32_t offset = codepoint - 0x10000;
+      uint32_t offset = (uint32_t)(codepoint - 0x10000);
       utf16[utf16_pos++] = (uint16_t)(0xD800 + (offset >> 10));
       utf16[utf16_pos++] = (uint16_t)(0xDC00 + (offset & 0x3FF));
     }
@@ -223,7 +223,7 @@ int utf16_pos_to_utf8_byte(const char *str, int utf16_pos) {
     if (bytes <= 0)
       break;
 
-    utf8_byte += bytes;
+    utf8_byte += (int)bytes;
 
     // Count UTF-16 code units for this character
     if (codepoint <= 0xFFFF) {
