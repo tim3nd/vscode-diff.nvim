@@ -1,5 +1,10 @@
 # Makefile for vscode-diff.nvim
-# Convenience wrapper around CMake
+# Convenience wrapper around CMake for Unix-like systems (Linux, macOS, BSD)
+#
+# Windows users: Use one of these instead:
+#   - build.cmd (standalone, no dependencies)
+#   - cmake -B build && cmake --build build (requires CMake)
+#   - See README.md for details
 
 .PHONY: all build generate-scripts test test-c test-lua clean help bump-patch bump-minor bump-major version
 

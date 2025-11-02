@@ -21,16 +21,35 @@ A Neovim plugin that provides VSCode-style inline diff rendering with two-tier h
 ### Prerequisites
 
 - Neovim >= 0.7.0 (for Lua FFI support; 0.10+ recommended for vim.system)
-- GCC or compatible C compiler
-- Make
 - Git (for git diff features)
+
+**Build requirements (choose one):**
+- **Linux/macOS/BSD**: GCC/Clang and Make
+- **Windows**: One of the following:
+  - Visual Studio (MSVC) - standalone `build.cmd` works out of the box
+  - MinGW-w64 (GCC) and Make
+  - CMake (any generator)
 
 ### Using lazy.nvim
 
+**Linux/macOS/BSD:**
 ```lua
 {
   dir = "~/.local/share/nvim/vscode-diff.nvim",  -- Update this path
   build = "make clean && make",
+  config = function()
+    require("vscode-diff.config").setup({
+      -- Optional configuration
+    })
+  end,
+}
+```
+
+**Windows:**
+```lua
+{
+  dir = "~/AppData/Local/nvim-data/vscode-diff.nvim",  -- Update this path
+  build = "build.cmd",  -- Or: "cmake -B build && cmake --build build"
   config = function()
     require("vscode-diff.config").setup({
       -- Optional configuration
@@ -48,8 +67,22 @@ cd ~/.local/share/nvim/vscode-diff.nvim
 ```
 
 2. Build the C module:
+
+**Linux/macOS/BSD:**
 ```bash
 make clean && make
+```
+
+**Windows:**
+```cmd
+REM Option 1: Standalone build (no CMake needed, auto-detects MSVC/MinGW/Clang)
+build.cmd
+
+REM Option 2: CMake with Visual Studio
+cmake -B build && cmake --build build
+
+REM Option 3: CMake with MinGW
+cmake -B build -G "MinGW Makefiles" && cmake --build build
 ```
 
 3. Add to your Neovim runtime path in `init.lua`:

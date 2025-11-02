@@ -3,6 +3,7 @@
 *.so
 *.dylib
 *.dll
+*.obj
 test_diff_core
 **/build
 

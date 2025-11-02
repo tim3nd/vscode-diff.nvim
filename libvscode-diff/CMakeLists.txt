@@ -25,9 +25,15 @@ elseif(UNIX)
 endif()
 
 # Compiler flags
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra")
-set(CMAKE_C_FLAGS_DEBUG "-g -O0")
-set(CMAKE_C_FLAGS_RELEASE "-O2 -DNDEBUG")
+if(MSVC)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /W3")
+    set(CMAKE_C_FLAGS_DEBUG "/Od /Zi")
+    set(CMAKE_C_FLAGS_RELEASE "/O2 /DNDEBUG")
+else()
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra")
+    set(CMAKE_C_FLAGS_DEBUG "-g -O0")
+    set(CMAKE_C_FLAGS_RELEASE "-O2 -DNDEBUG")
+endif()
 
 # POSIX flags for non-Windows
 if(NOT WIN32)
@@ -83,9 +89,16 @@ target_include_directories(vscode_diff
         $<$<BOOL:${USE_BUNDLED_UTF8PROC}>:${UTF8PROC_INCLUDE}>
 )
 
+# Define UTF8PROC_STATIC when using bundled utf8proc
+if(USE_BUNDLED_UTF8PROC)
+    target_compile_definitions(vscode_diff PRIVATE UTF8PROC_STATIC)
+endif()
+
 if(USE_BUNDLED_UTF8PROC)
     # Using bundled utf8proc - no external linking needed
-    target_link_libraries(vscode_diff PRIVATE m)
+    if(NOT WIN32)
+        target_link_libraries(vscode_diff PRIVATE m)
+    endif()
 else()
     # Using system utf8proc
     target_link_libraries(vscode_diff PRIVATE ${UTF8PROC_LIBRARY})
@@ -150,9 +163,16 @@ function(add_diff_test test_name)
     
     if(USE_BUNDLED_UTF8PROC)
         target_include_directories(${test_name} PRIVATE ${UTF8PROC_INCLUDE})
-        target_link_libraries(${test_name} PRIVATE m)
+        target_compile_definitions(${test_name} PRIVATE UTF8PROC_STATIC)
+        if(NOT WIN32)
+            target_link_libraries(${test_name} PRIVATE m)
+        endif()
     else()
-        target_link_libraries(${test_name} PRIVATE ${UTF8PROC_LIBRARY} m)
+        if(WIN32)
+            target_link_libraries(${test_name} PRIVATE ${UTF8PROC_LIBRARY})
+        else()
+            target_link_libraries(${test_name} PRIVATE ${UTF8PROC_LIBRARY} m)
+        endif()
     endif()
     
     add_test(NAME ${test_name} COMMAND ${test_name})
@@ -179,9 +199,16 @@ target_include_directories(diff PRIVATE include)
 
 if(USE_BUNDLED_UTF8PROC)
     target_include_directories(diff PRIVATE ${UTF8PROC_INCLUDE})
-    target_link_libraries(diff PRIVATE m)
+    target_compile_definitions(diff PRIVATE UTF8PROC_STATIC)
+    if(NOT WIN32)
+        target_link_libraries(diff PRIVATE m)
+    endif()
 else()
-    target_link_libraries(diff PRIVATE ${UTF8PROC_LIBRARY} m)
+    if(WIN32)
+        target_link_libraries(diff PRIVATE ${UTF8PROC_LIBRARY})
+    else()
+        target_link_libraries(diff PRIVATE ${UTF8PROC_LIBRARY} m)
+    endif()
 endif()
 
 # Print configuration

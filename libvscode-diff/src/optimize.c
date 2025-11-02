@@ -404,9 +404,11 @@ SequenceDiffArray *optimize_sequence_diffs(const ISequence *seq1, const ISequenc
  * 
  * REUSED BY: Step 4 (character-level short match removal)
  */
-SequenceDiffArray *remove_short_matches(const ISequence *seq1 __attribute__((unused)),
-                                        const ISequence *seq2 __attribute__((unused)),
+SequenceDiffArray *remove_short_matches(const ISequence *seq1,
+                                        const ISequence *seq2,
                                         SequenceDiffArray *diffs) {
+  (void)seq1;  // Unused parameter
+  (void)seq2;  // Unused parameter
   if (!diffs || diffs->count == 0) {
     return diffs;
   }
@@ -466,9 +468,9 @@ SequenceDiffArray *remove_short_matches(const ISequence *seq1 __attribute__((unu
  * ```
  */
 SequenceDiffArray *remove_very_short_matching_lines_between_diffs(const ISequence *seq1,
-                                                                  const ISequence *seq2
-                                                                  __attribute__((unused)),
+                                                                  const ISequence *seq2,
                                                                   SequenceDiffArray *diffs) {
+  (void)seq2;  // Unused parameter
 
   if (!diffs || diffs->count == 0) {
     return diffs;
