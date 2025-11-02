@@ -35,10 +35,6 @@ static SequenceDiff shift_diff_to_better_position(SequenceDiff diff, const ISequ
                                                   int seq1_valid_end, int seq2_valid_start,
                                                   int seq2_valid_end);
 
-// Helper: Min/Max functions
-static inline int min_int(int a, int b) { return a < b ? a : b; }
-static inline int max_int(int a, int b) { return a > b ? a : b; }
-
 // ============================================================================
 // UTF-8 Decoder - For Unicode Whitespace Detection
 // ============================================================================
