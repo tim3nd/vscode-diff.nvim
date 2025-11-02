@@ -393,16 +393,19 @@ end
 -- ============================================================================
 
 -- Render diff with simplified 3-step algorithm
-function M.render_diff(left_bufnr, right_bufnr, original_lines, modified_lines, lines_diff)
+-- @param skip_right_content boolean: If true, don't set content for right buffer (for real file buffers)
+function M.render_diff(left_bufnr, right_bufnr, original_lines, modified_lines, lines_diff, skip_right_content)
   -- Clear existing highlights and fillers
   vim.api.nvim_buf_clear_namespace(left_bufnr, ns_highlight, 0, -1)
   vim.api.nvim_buf_clear_namespace(right_bufnr, ns_highlight, 0, -1)
   vim.api.nvim_buf_clear_namespace(left_bufnr, ns_filler, 0, -1)
   vim.api.nvim_buf_clear_namespace(right_bufnr, ns_filler, 0, -1)
 
-  -- Set buffer content
+  -- Set buffer content (skip right buffer if it's a real file)
   vim.api.nvim_buf_set_lines(left_bufnr, 0, -1, false, original_lines)
-  vim.api.nvim_buf_set_lines(right_bufnr, 0, -1, false, modified_lines)
+  if not skip_right_content then
+    vim.api.nvim_buf_set_lines(right_bufnr, 0, -1, false, modified_lines)
+  end
 
   local total_left_fillers = 0
   local total_right_fillers = 0
@@ -469,22 +472,61 @@ function M.render_diff(left_bufnr, right_bufnr, original_lines, modified_lines, 
   }
 end
 
+
 -- Create side-by-side diff view
-function M.create_diff_view(original_lines, modified_lines, lines_diff)
+-- @param original_lines table: Lines from the original version
+-- @param modified_lines table: Lines from the modified version
+-- @param lines_diff table: Diff result from compute_diff
+-- @param opts table: Optional settings
+--   - right_file string: If provided, the right buffer will be linked to this file and made editable
+function M.create_diff_view(original_lines, modified_lines, lines_diff, opts)
+  opts = opts or {}
+  
   -- Create buffers
   local left_buf = vim.api.nvim_create_buf(false, true)
-  local right_buf = vim.api.nvim_create_buf(false, true)
+  local right_buf
+  
+  -- If right_file is provided, reuse existing buffer or create a real file buffer
+  if opts.right_file then
+    -- Check if buffer for this file already exists
+    local existing_buf = vim.fn.bufnr(opts.right_file)
+    if existing_buf ~= -1 then
+      -- Reuse existing buffer
+      right_buf = existing_buf
+    else
+      -- Create a new file buffer
+      right_buf = vim.api.nvim_create_buf(false, false)
+      vim.api.nvim_buf_set_name(right_buf, opts.right_file)
+      -- Load the actual file content
+      vim.bo[right_buf].buftype = ""
+      vim.fn.bufload(right_buf)
+    end
+  else
+    -- Create scratch buffer for both sides
+    right_buf = vim.api.nvim_create_buf(false, true)
+  end
 
-  -- Set buffer options
-  local buf_opts = {
+  -- Set buffer options for left buffer (always read-only)
+  local left_buf_opts = {
     modifiable = false,
     buftype = "nofile",
     bufhidden = "wipe",
   }
 
-  for opt, val in pairs(buf_opts) do
+  for opt, val in pairs(left_buf_opts) do
     vim.bo[left_buf][opt] = val
-    vim.bo[right_buf][opt] = val
+  end
+  
+  -- Set buffer options for right buffer
+  if not opts.right_file then
+    local right_buf_opts = {
+      modifiable = false,
+      buftype = "nofile",
+      bufhidden = "wipe",
+    }
+    for opt, val in pairs(right_buf_opts) do
+      vim.bo[right_buf][opt] = val
+    end
   end
 
   -- Temporarily make buffers modifiable for content and filler insertion
@@ -492,11 +534,16 @@ function M.create_diff_view(original_lines, modified_lines, lines_diff)
   vim.bo[right_buf].modifiable = true
 
   -- Render diff (this inserts fillers and applies highlights)
-  local result = M.render_diff(left_buf, right_buf, original_lines, modified_lines, lines_diff)
+  -- Skip setting content for right buffer if it's a real file (already has current content)
+  local result = M.render_diff(left_buf, right_buf, original_lines, modified_lines, lines_diff, opts.right_file ~= nil)
 
-  -- Make buffers read-only again
+  -- Make left buffer read-only again
   vim.bo[left_buf].modifiable = false
-  vim.bo[right_buf].modifiable = false
+  
+  -- Make right buffer read-only only if it's not a real file
+  if not opts.right_file then
+    vim.bo[right_buf].modifiable = false
+  end
 
   -- Create side-by-side windows
   vim.cmd("tabnew")
@@ -506,6 +553,11 @@ function M.create_diff_view(original_lines, modified_lines, lines_diff)
   vim.cmd("vsplit")
   local right_win = vim.api.nvim_get_current_win()
   vim.api.nvim_win_set_buf(right_win, right_buf)
+
+  -- IMPORTANT: Reset both cursors to line 1 BEFORE enabling scrollbind
+  -- This ensures scrollbind starts with both windows at the same position
+  vim.api.nvim_win_set_cursor(left_win, {1, 0})
+  vim.api.nvim_win_set_cursor(right_win, {1, 0})
 
   -- Window options
   local win_opts = {
@@ -521,19 +573,25 @@ function M.create_diff_view(original_lines, modified_lines, lines_diff)
     vim.wo[right_win][opt] = val
   end
 
-  -- Set buffer names (make unique)
-  local unique_id = math.random(1000000, 9999999)
-  pcall(vim.api.nvim_buf_set_name, left_buf, string.format("Original_%d", unique_id))
-  pcall(vim.api.nvim_buf_set_name, right_buf, string.format("Modified_%d", unique_id))
+  -- Set buffer names (make unique) - only for scratch buffers
+  if not opts.right_file then
+    local unique_id = math.random(1000000, 9999999)
+    pcall(vim.api.nvim_buf_set_name, left_buf, string.format("Original_%d", unique_id))
+    pcall(vim.api.nvim_buf_set_name, right_buf, string.format("Modified_%d", unique_id))
+  else
+    local unique_id = math.random(1000000, 9999999)
+    pcall(vim.api.nvim_buf_set_name, left_buf, string.format("Original_%d", unique_id))
+    -- right_buf already has the file name set
+  end
 
   -- Auto-scroll to center the first hunk
   if #lines_diff.changes > 0 then
     local first_change = lines_diff.changes[1]
-    local target_line_left = first_change.original.start_line
-    local target_line_right = first_change.modified.start_line
+    local target_line = first_change.original.start_line
     
-    vim.api.nvim_win_set_cursor(left_win, {target_line_left, 0})
-    vim.api.nvim_win_set_cursor(right_win, {target_line_right, 0})
+    -- Set both windows to the same line (fillers handle visual alignment)
+    vim.api.nvim_win_set_cursor(left_win, {target_line, 0})
+    vim.api.nvim_win_set_cursor(right_win, {target_line, 0})
     
     -- Center and activate scroll sync by simulating a click on the right window
     vim.api.nvim_set_current_win(right_win)

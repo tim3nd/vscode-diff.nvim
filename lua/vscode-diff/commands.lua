@@ -24,8 +24,6 @@ local function handle_git_diff(revision)
     return
   end
 
-  local lines_current = vim.api.nvim_buf_get_lines(0, 0, -1, false)
-
   git.get_file_at_revision(revision, current_file, function(err, lines_git)
     vim.schedule(function()
       if err then
@@ -33,8 +31,14 @@ local function handle_git_diff(revision)
         return
       end
 
+      -- Read fresh buffer content right before creating diff view
+      -- This ensures we diff against the current buffer state, not a snapshot
+      local lines_current = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+      
       local lines_diff = diff.compute_diff(lines_git, lines_current)
-      render.create_diff_view(lines_git, lines_current, lines_diff)
+      render.create_diff_view(lines_git, lines_current, lines_diff, {
+        right_file = current_file,
+      })
     end)
   end)
 end
