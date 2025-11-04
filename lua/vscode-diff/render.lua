@@ -513,6 +513,7 @@ function M.create_diff_view(original_lines, modified_lines, lines_diff)
     relativenumber = false,
     cursorline = true,
     scrollbind = true,  -- Synchronized scrolling
+    wrap = false,       -- Disable line wrap to keep alignment
   }
 
   for opt, val in pairs(win_opts) do

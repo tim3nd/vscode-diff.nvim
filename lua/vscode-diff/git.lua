@@ -105,6 +105,8 @@ end
 function M.get_relative_path(file_path, git_root)
   local abs_path = vim.fn.fnamemodify(file_path, ":p")
   local rel_path = abs_path:sub(#git_root + 2) -- +2 for the trailing slash
+  -- Git always uses forward slashes, even on Windows
+  rel_path = rel_path:gsub("\\", "/")
   return rel_path
 end
 
