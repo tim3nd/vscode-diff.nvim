@@ -48,7 +48,7 @@ test-c: build
 	@echo "╔════════════════════════════════════════════════════════════╗"
 	@echo "║  Running C Unit Tests (CTest)...                           ║"
 	@echo "╚════════════════════════════════════════════════════════════╝"
-	@cd build && ctest --output-on-failure
+	@cd build/libvscode-diff && ctest --output-on-failure
 
 # Run Lua integration tests
 test-lua:

@@ -199,6 +199,35 @@ add_diff_test(test_char_boundary_categories)
 add_diff_test(test_range_mapping)
 add_diff_test(test_compute_diff)
 add_diff_test(test_render_plan)
+add_diff_test(test_memory_leak)
+
+# ============================================================================
+# Valgrind Memory Leak Test
+# ============================================================================
+
+# Find Valgrind (optional, won't fail if not found)
+find_program(VALGRIND_EXECUTABLE valgrind)
+
+if(VALGRIND_EXECUTABLE)
+    # Add Valgrind test
+    add_test(
+        NAME test_memory_leak_valgrind
+        COMMAND ${VALGRIND_EXECUTABLE}
+            --leak-check=full
+            --show-leak-kinds=definite,possible
+            --errors-for-leak-kinds=definite
+            --error-exitcode=1
+            --track-origins=yes
+            $<TARGET_FILE:test_memory_leak>
+    )
+    
+    message(STATUS "Valgrind found: Memory leak testing enabled")
+    message(STATUS "  Run: make test                    (normal tests)")
+    message(STATUS "  Run: ctest -R valgrind -V         (valgrind test with output)")
+else()
+    message(STATUS "Valgrind not found: Memory leak test will run without valgrind")
+    message(STATUS "  Install: sudo apt-get install valgrind")
+endif()
 
 # ============================================================================
 # Diff Tool (command-line utility for testing)
