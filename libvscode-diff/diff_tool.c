@@ -210,7 +210,10 @@ int main(int argc, char* argv[]) {
 
     // Compute diff with timing
     portable_time_t start_time, end_time;
+    clock_t cpu_start, cpu_end;
+    
     portable_gettime(&start_time);
+    cpu_start = clock();
     LinesDiff* diff = compute_diff(
         (const char**)original_lines,
         original_count,
@@ -218,8 +221,11 @@ int main(int argc, char* argv[]) {
         modified_count,
         &options
     );
+    cpu_end = clock();
     portable_gettime(&end_time);
-    double elapsed_ms = portable_time_diff_ms(&start_time, &end_time);
+    
+    double wall_clock_ms = portable_time_diff_ms(&start_time, &end_time);
+    double cpu_time_ms = ((double)(cpu_end - cpu_start)) / CLOCKS_PER_SEC * 1000.0;
     
     if (!diff) {
         fprintf(stderr, "Error: Failed to compute diff\n");
@@ -244,7 +250,12 @@ int main(int argc, char* argv[]) {
     printf("\n=================================================================\n");
     
     if (show_timing) {
-        printf("Computation time: %.3f ms\n", elapsed_ms);
+        printf("Wall-clock time: %.3f ms (actual time elapsed)\n", wall_clock_ms);
+        printf("CPU time:        %.3f ms (sum of all threads)\n", cpu_time_ms);
+        if (cpu_time_ms > wall_clock_ms * 1.2) {
+            double parallelism = cpu_time_ms / wall_clock_ms;
+            printf("Parallelism:     %.2fx (using ~%.1f cores)\n", parallelism, parallelism);
+        }
     }
     
     // Cleanup
