@@ -20,6 +20,10 @@
 #include <string.h>
 #include <stdio.h>
 
+#ifdef USE_OPENMP
+#include <omp.h>
+#endif
+
 // ============================================================================
 // Forward Declarations
 // ============================================================================
@@ -389,78 +393,246 @@ LinesDiff* compute_diff(
     alignments->count = 0;
     alignments->capacity = 0;
     
-    // Character refinement loop
-    int seq1_last_start = 0;
-    int seq2_last_start = 0;
+#ifdef USE_OPENMP
+    // Parallel character refinement (OpenMP)
+    // Only parallelize if we have enough diffs to justify thread overhead
+    const int MIN_DIFFS_FOR_PARALLEL = 4;
+    int use_parallel = line_alignments->count >= MIN_DIFFS_FOR_PARALLEL;
     
-    for (int diff_idx = 0; diff_idx < line_alignments->count; diff_idx++) {
-        const SequenceDiff* diff = &line_alignments->diffs[diff_idx];
+    if (use_parallel) {
+        // Pre-allocate thread-local result arrays
+        int num_diffs = line_alignments->count;
+        RangeMappingArray** thread_results = (RangeMappingArray**)calloc((size_t)num_diffs, sizeof(RangeMappingArray*));
+        int* thread_equal_lines = (int*)calloc((size_t)num_diffs, sizeof(int));
+        int* thread_seq1_starts = (int*)calloc((size_t)num_diffs, sizeof(int));
+        int* thread_seq2_starts = (int*)calloc((size_t)num_diffs, sizeof(int));
+        int* thread_timeouts = (int*)calloc((size_t)num_diffs, sizeof(int));
         
-        int equal_lines_count = diff->seq1_start - seq1_last_start;
-        
-        // Scan equal lines for whitespace changes
-        scan_for_whitespace_changes(
-            equal_lines_count,
-            seq1_last_start,
-            seq2_last_start,
-            original_lines, original_count,
-            modified_lines, modified_count,
-            consider_whitespace_changes,
-            &timeout,
-            options,
-            alignments,
-            &hit_timeout
-        );
-        
-        seq1_last_start = diff->seq1_end;
-        seq2_last_start = diff->seq2_end;
-        
-        // Refine this diff region
-        bool local_timeout = false;
-        RangeMappingArray* character_diffs = refine_diff(
-            diff,
-            original_lines, original_count,
-            modified_lines, modified_count,
-            &timeout,
-            consider_whitespace_changes,
-            options,
-            &local_timeout
-        );
-        
-        if (local_timeout) {
-            hit_timeout = true;
-        }
-        
-        if (character_diffs) {
-            // Add all character mappings
-            for (int j = 0; j < character_diffs->count; j++) {
-                if (alignments->count >= alignments->capacity) {
-                    size_t new_capacity = (size_t)(alignments->capacity == 0 ? 16 : alignments->capacity * 2);
-                    RangeMapping* new_mappings = (RangeMapping*)realloc(
-                        alignments->mappings,
-                        new_capacity * sizeof(RangeMapping)
-                    );
-                    if (new_mappings) {
-                        alignments->mappings = new_mappings;
-                        alignments->capacity = (int)new_capacity;
-                    }
+        if (!thread_results || !thread_equal_lines || !thread_seq1_starts || 
+            !thread_seq2_starts || !thread_timeouts) {
+            free(thread_results);
+            free(thread_equal_lines);
+            free(thread_seq1_starts);
+            free(thread_seq2_starts);
+            free(thread_timeouts);
+            use_parallel = 0; // Fallback to sequential
+        } else {
+            // Precompute position data (sequential, fast)
+            int seq1_last_start = 0;
+            int seq2_last_start = 0;
+            for (int i = 0; i < num_diffs; i++) {
+                const SequenceDiff* diff = &line_alignments->diffs[i];
+                thread_equal_lines[i] = diff->seq1_start - seq1_last_start;
+                thread_seq1_starts[i] = seq1_last_start;
+                thread_seq2_starts[i] = seq2_last_start;
+                seq1_last_start = diff->seq1_end;
+                seq2_last_start = diff->seq2_end;
+            }
+            
+            // Parallel character refinement with dynamic scheduling
+            // MSVC OpenMP 2.0 workaround: declare loop variable outside
+            int diff_idx;
+            #pragma omp parallel for schedule(dynamic, 1) shared(thread_results, thread_timeouts) private(diff_idx)
+            for (diff_idx = 0; diff_idx < num_diffs; diff_idx++) {
+                const SequenceDiff* diff = &line_alignments->diffs[diff_idx];
+                
+                // Thread-local whitespace change scanning
+                RangeMappingArray* ws_changes = (RangeMappingArray*)malloc(sizeof(RangeMappingArray));
+                ws_changes->mappings = NULL;
+                ws_changes->count = 0;
+                ws_changes->capacity = 0;
+                
+                scan_for_whitespace_changes(
+                    thread_equal_lines[diff_idx],
+                    thread_seq1_starts[diff_idx],
+                    thread_seq2_starts[diff_idx],
+                    original_lines, original_count,
+                    modified_lines, modified_count,
+                    consider_whitespace_changes,
+                    &timeout,
+                    options,
+                    ws_changes,
+                    &hit_timeout
+                );
+                
+                // Thread-local character diff refinement
+                bool local_timeout = false;
+                RangeMappingArray* character_diffs = refine_diff(
+                    diff,
+                    original_lines, original_count,
+                    modified_lines, modified_count,
+                    &timeout,
+                    consider_whitespace_changes,
+                    options,
+                    &local_timeout
+                );
+                
+                // Store timeout flag without synchronization
+                if (local_timeout) {
+                    thread_timeouts[diff_idx] = 1;
                 }
                 
-                if (alignments->count < alignments->capacity) {
-                    alignments->mappings[alignments->count++] = character_diffs->mappings[j];
+                // Merge ws_changes and character_diffs into thread_results[diff_idx]
+                int total_count = (ws_changes ? ws_changes->count : 0) + 
+                                 (character_diffs ? character_diffs->count : 0);
+                
+                if (total_count > 0) {
+                    RangeMappingArray* combined = (RangeMappingArray*)malloc(sizeof(RangeMappingArray));
+                    combined->mappings = (RangeMapping*)malloc((size_t)total_count * sizeof(RangeMapping));
+                    combined->count = 0;
+                    combined->capacity = total_count;
+                    
+                    if (ws_changes && ws_changes->count > 0) {
+                        memcpy(combined->mappings, ws_changes->mappings, 
+                               (size_t)ws_changes->count * sizeof(RangeMapping));
+                        combined->count += ws_changes->count;
+                    }
+                    
+                    if (character_diffs && character_diffs->count > 0) {
+                        memcpy(combined->mappings + combined->count, character_diffs->mappings,
+                               (size_t)character_diffs->count * sizeof(RangeMapping));
+                        combined->count += character_diffs->count;
+                    }
+                    
+                    thread_results[diff_idx] = combined;
+                }
+                
+                if (ws_changes) range_mapping_array_free(ws_changes);
+                if (character_diffs) range_mapping_array_free(character_diffs);
+            }
+            
+            // Check timeout flags
+            for (int i = 0; i < num_diffs; i++) {
+                if (thread_timeouts[i]) {
+                    hit_timeout = true;
+                    break;
                 }
             }
             
-            range_mapping_array_free(character_diffs);
+            // Optimized merge: calculate total size and do single allocation + batch copy
+            int total_size = 0;
+            for (int i = 0; i < num_diffs; i++) {
+                if (thread_results[i]) {
+                    total_size += thread_results[i]->count;
+                }
+            }
+            
+            if (total_size > 0) {
+                alignments->mappings = (RangeMapping*)malloc((size_t)total_size * sizeof(RangeMapping));
+                if (alignments->mappings) {
+                    alignments->capacity = total_size;
+                    int offset = 0;
+                    for (int i = 0; i < num_diffs; i++) {
+                        if (thread_results[i] && thread_results[i]->count > 0) {
+                            memcpy(alignments->mappings + offset,
+                                   thread_results[i]->mappings,
+                                   (size_t)thread_results[i]->count * sizeof(RangeMapping));
+                            offset += thread_results[i]->count;
+                        }
+                    }
+                    alignments->count = total_size;
+                }
+            }
+            
+            // Cleanup thread results
+            for (int i = 0; i < num_diffs; i++) {
+                if (thread_results[i]) {
+                    range_mapping_array_free(thread_results[i]);
+                }
+            }
+            
+            free(thread_results);
+            free(thread_equal_lines);
+            free(thread_seq1_starts);
+            free(thread_seq2_starts);
+            free(thread_timeouts);
         }
     }
     
-    // Scan remaining equal lines
-    int remaining = original_count - seq1_last_start;
+    // Fallback to sequential or handle remaining work
+    if (!use_parallel)
+#endif
+    {
+        // Sequential character refinement loop (original code)
+        int seq1_last_start = 0;
+        int seq2_last_start = 0;
+        
+        for (int diff_idx = 0; diff_idx < line_alignments->count; diff_idx++) {
+            const SequenceDiff* diff = &line_alignments->diffs[diff_idx];
+            
+            int equal_lines_count = diff->seq1_start - seq1_last_start;
+            
+            // Scan equal lines for whitespace changes
+            scan_for_whitespace_changes(
+                equal_lines_count,
+                seq1_last_start,
+                seq2_last_start,
+                original_lines, original_count,
+                modified_lines, modified_count,
+                consider_whitespace_changes,
+                &timeout,
+                options,
+                alignments,
+                &hit_timeout
+            );
+            
+            seq1_last_start = diff->seq1_end;
+            seq2_last_start = diff->seq2_end;
+            
+            // Refine this diff region
+            bool local_timeout = false;
+            RangeMappingArray* character_diffs = refine_diff(
+                diff,
+                original_lines, original_count,
+                modified_lines, modified_count,
+                &timeout,
+                consider_whitespace_changes,
+                options,
+                &local_timeout
+            );
+            
+            if (local_timeout) {
+                hit_timeout = true;
+            }
+            
+            if (character_diffs) {
+                // Add all character mappings
+                for (int j = 0; j < character_diffs->count; j++) {
+                    if (alignments->count >= alignments->capacity) {
+                        size_t new_capacity = (size_t)(alignments->capacity == 0 ? 16 : alignments->capacity * 2);
+                        RangeMapping* new_mappings = (RangeMapping*)realloc(
+                            alignments->mappings,
+                            new_capacity * sizeof(RangeMapping)
+                        );
+                        if (new_mappings) {
+                            alignments->mappings = new_mappings;
+                            alignments->capacity = (int)new_capacity;
+                        }
+                    }
+                    
+                    if (alignments->count < alignments->capacity) {
+                        alignments->mappings[alignments->count++] = character_diffs->mappings[j];
+                    }
+                }
+                
+                range_mapping_array_free(character_diffs);
+            }
+        }
+    }
+    
+    // Scan remaining equal lines (sequential - happens after all diffs)
+    int seq1_final = 0;
+    int seq2_final = 0;
+    if (line_alignments->count > 0) {
+        seq1_final = line_alignments->diffs[line_alignments->count - 1].seq1_end;
+        seq2_final = line_alignments->diffs[line_alignments->count - 1].seq2_end;
+    }
+    
+    int remaining = original_count - seq1_final;
     scan_for_whitespace_changes(
         remaining,
-        seq1_last_start,
-        seq2_last_start,
+        seq1_final,
+        seq2_final,
         original_lines, original_count,
         modified_lines, modified_count,
         consider_whitespace_changes,

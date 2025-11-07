@@ -40,6 +40,16 @@ if(NOT WIN32)
     add_definitions(-D_POSIX_C_SOURCE=200809L)
 endif()
 
+# Find OpenMP for parallelization
+find_package(OpenMP)
+if(OpenMP_C_FOUND)
+    set(USE_OPENMP TRUE)
+    message(STATUS "OpenMP found: Character-level diff will use multi-core parallelization")
+else()
+    set(USE_OPENMP FALSE)
+    message(STATUS "OpenMP not found: Using sequential character-level diff")
+endif()
+
 # Find utf8proc library (or use bundled version)
 set(UTF8PROC_BUNDLED "${CMAKE_CURRENT_SOURCE_DIR}/vendor/utf8proc.c")
 if(EXISTS ${UTF8PROC_BUNDLED})
@@ -102,6 +112,13 @@ endif()
 # Define BUILDING_DLL for Windows DLL export
 if(WIN32)
     target_compile_definitions(vscode_diff PRIVATE BUILDING_DLL)
+endif()
+
+# Enable OpenMP if available
+if(USE_OPENMP)
+    target_compile_options(vscode_diff PRIVATE ${OpenMP_C_FLAGS})
+    target_link_libraries(vscode_diff PRIVATE OpenMP::OpenMP_C)
+    target_compile_definitions(vscode_diff PRIVATE USE_OPENMP)
 endif()
 
 if(USE_BUNDLED_UTF8PROC)
@@ -185,6 +202,13 @@ function(add_diff_test test_name)
         endif()
     endif()
     
+    # Enable OpenMP for tests too
+    if(USE_OPENMP)
+        target_compile_options(${test_name} PRIVATE ${OpenMP_C_FLAGS})
+        target_link_libraries(${test_name} PRIVATE OpenMP::OpenMP_C)
+        target_compile_definitions(${test_name} PRIVATE USE_OPENMP)
+    endif()
+    
     add_test(NAME ${test_name} COMMAND ${test_name})
 endfunction()
 
@@ -250,6 +274,13 @@ else()
     endif()
 endif()
 
+# Enable OpenMP for diff tool
+if(USE_OPENMP)
+    target_compile_options(diff PRIVATE ${OpenMP_C_FLAGS})
+    target_link_libraries(diff PRIVATE OpenMP::OpenMP_C)
+    target_compile_definitions(diff PRIVATE USE_OPENMP)
+endif()
+
 # Print configuration
 message(STATUS "===========================================")
 message(STATUS "  vscode_diff Configuration")
@@ -261,6 +292,11 @@ if(USE_BUNDLED_UTF8PROC)
 message(STATUS "  utf8proc: bundled (vendor/utf8proc.c)")
 else()
 message(STATUS "  utf8proc: ${UTF8PROC_LIBRARY}")
+endif()
+if(USE_OPENMP)
+message(STATUS "  OpenMP: enabled (multi-core char diff)")
+else()
+message(STATUS "  OpenMP: disabled (sequential char diff)")
 endif()
 message(STATUS "===========================================")
 
