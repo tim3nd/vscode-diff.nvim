@@ -110,16 +110,25 @@ function M.vscode_diff(opts)
   local args = opts.fargs
 
   if #args == 0 then
-    vim.notify("Usage: :CodeDiff <file_a> <file_b> OR :CodeDiff <revision>", vim.log.levels.ERROR)
+    vim.notify("TODO: File explorer not implemented yet. Usage: :CodeDiff file <revision> OR :CodeDiff file <file_a> <file_b>", vim.log.levels.WARN)
     return
   end
 
-  if #args == 1 then
-    handle_git_diff(args[1])
-  elseif #args == 2 then
-    handle_file_diff(args[1], args[2])
+  local subcommand = args[1]
+
+  if subcommand == "file" then
+    if #args == 2 then
+      -- :CodeDiff file HEAD
+      handle_git_diff(args[2])
+    elseif #args == 3 then
+      -- :CodeDiff file file_a.txt file_b.txt
+      handle_file_diff(args[2], args[3])
+    else
+      vim.notify("Usage: :CodeDiff file <revision> OR :CodeDiff file <file_a> <file_b>", vim.log.levels.ERROR)
+    end
   else
-    vim.notify("Usage: :CodeDiff <file_a> <file_b> OR :CodeDiff <revision>", vim.log.levels.ERROR)
+    -- :CodeDiff <revision> will be used for explorer in the future
+    vim.notify("TODO: Explorer mode not implemented. Use :CodeDiff file <revision> for now", vim.log.levels.WARN)
   end
 end
 

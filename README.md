@@ -92,25 +92,39 @@ vim.opt.rtp:append("~/.local/share/nvim/vscode-diff.nvim")
 
 ## Usage
 
-### Git Diff (Single Argument)
+The `:CodeDiff` command supports multiple modes:
+
+### File Explorer Mode (Coming Soon)
+
+Open an interactive file explorer showing changed files:
+
+```vim
+" Show git status in explorer (default)
+:CodeDiff
+
+" Show changes for specific revision in explorer
+:CodeDiff HEAD~5
+```
+
+### Git Diff Mode
 
 Compare the current buffer with a git revision:
 
 ```vim
 " Compare with last commit
-:CodeDiff HEAD
+:CodeDiff file HEAD
 
 " Compare with previous commit
-:CodeDiff HEAD~1
+:CodeDiff file HEAD~1
 
 " Compare with specific commit
-:CodeDiff abc123
+:CodeDiff file abc123
 
 " Compare with branch
-:CodeDiff main
+:CodeDiff file main
 
 " Compare with tag
-:CodeDiff v1.0.0
+:CodeDiff file v1.0.0
 ```
 
 **Requirements:**
@@ -124,12 +138,12 @@ Compare the current buffer with a git revision:
 - Opens in a new tab automatically
 - Async operation - won't block Neovim
 
-### File Diff (Two Arguments)
+### File Comparison Mode
 
-Compare two files side-by-side:
+Compare two arbitrary files side-by-side:
 
 ```vim
-:CodeDiff file_a.txt file_b.txt
+:CodeDiff file file_a.txt file_b.txt
 ```
 
 ### Lua API
