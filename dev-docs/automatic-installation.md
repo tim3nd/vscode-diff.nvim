@@ -163,33 +163,52 @@ Download failed: [error details]
 1. Check internet connectivity
 2. Verify access to github.com
 3. Check if release exists for your platform
-4. Try manual install: `:CodeDiffInstall!`
+4. Try manual install: `:CodeDiff install!`
 5. Try building from source
+
+## Automatic Updates
+
+The installer automatically detects version mismatches between the installed library and the VERSION file:
+
+1. On plugin load, it checks if the library version matches the VERSION file
+2. If versions don't match, it automatically downloads the correct version
+3. A version marker file (`.libvscode_diff_version`) tracks the installed version
+
+**Update Flow:**
+```
+Plugin loads → Check .libvscode_diff_version → Compare with VERSION file
+  ↓
+Version mismatch? → Download new version → Update .libvscode_diff_version
+  ↓
+Version matches? → Use existing library
+```
+
+This ensures users always have the correct library version without manual intervention when they update the plugin.
 
 ## Manual Installation Commands
 
-### `:CodeDiffInstall`
+### `:CodeDiff install`
 
-Installs the library if not already present.
+Installs or updates the library to match the VERSION file.
 
 **Usage:**
 ```vim
-:CodeDiffInstall
+:CodeDiff install
 ```
 
-### `:CodeDiffInstall!`
+### `:CodeDiff install!`
 
-Forces reinstallation, even if library already exists.
+Forces reinstallation, even if library already exists and version matches.
 
 **Usage:**
 ```vim
-:CodeDiffInstall!
+:CodeDiff install!
 ```
 
 **Use cases:**
-- After plugin update
-- If library becomes corrupted
-- To download a different version
+- Troubleshooting corrupted library
+- Forcing a clean reinstall
+- Testing installation process
 
 ## Supported Platforms
 

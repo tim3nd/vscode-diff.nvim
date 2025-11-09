@@ -8,6 +8,7 @@ test_diff_core
 **/build
 *.exe
 diff
+.libvscode_diff_version
 
 # Generated VSCode diff bundle (can be regenerated with ./build-vscode-diff.sh)
 vscode-diff.mjs

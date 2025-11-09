@@ -20,7 +20,7 @@ local function complete_codediff(arg_lead, cmd_line, cursor_pos)
   
   -- If no args or just ":CodeDiff", suggest subcommands and common revisions
   if #args <= 1 then
-    return { "file", "HEAD", "HEAD~1", "main", "master" }
+    return { "file", "install", "HEAD", "HEAD~1", "main", "master" }
   end
   
   -- If first arg is "file", complete with file paths for remaining args
@@ -34,13 +34,7 @@ end
 
 vim.api.nvim_create_user_command("CodeDiff", commands.vscode_diff, {
   nargs = "*",
-  complete = complete_codediff,
-  desc = "VSCode-style diff view: :CodeDiff [explorer] | file <revision> | file <file_a> <file_b>"
-})
-
--- Register install command
-vim.api.nvim_create_user_command("CodeDiffInstall", commands.install_library, {
-  nargs = 0,
   bang = true,
-  desc = "Install or reinstall libvscode-diff library (use ! to force reinstall)"
+  complete = complete_codediff,
+  desc = "VSCode-style diff view: :CodeDiff [explorer] | file <revision> | file <file_a> <file_b> | install"
 })

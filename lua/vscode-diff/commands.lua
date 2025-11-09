@@ -126,27 +126,26 @@ function M.vscode_diff(opts)
     else
       vim.notify("Usage: :CodeDiff file <revision> OR :CodeDiff file <file_a> <file_b>", vim.log.levels.ERROR)
     end
+  elseif subcommand == "install" or subcommand == "install!" then
+    -- :CodeDiff install or :CodeDiff install!
+    -- Handle both :CodeDiff! install and :CodeDiff install!
+    local force = opts.bang or subcommand == "install!"
+    local installer = require("vscode-diff.installer")
+    
+    if force then
+      vim.notify("Reinstalling libvscode-diff...", vim.log.levels.INFO)
+    end
+    
+    local success, err = installer.install({ force = force, silent = false })
+    
+    if success then
+      vim.notify("libvscode-diff installation successful!", vim.log.levels.INFO)
+    else
+      vim.notify("Installation failed: " .. (err or "unknown error"), vim.log.levels.ERROR)
+    end
   else
     -- :CodeDiff <revision> will be used for explorer in the future
     vim.notify("TODO: Explorer mode not implemented. Use :CodeDiff file <revision> for now", vim.log.levels.WARN)
-  end
-end
-
--- Install or reinstall the C library
-function M.install_library(opts)
-  local force = opts.bang -- :CodeDiffInstall! forces reinstall
-  local installer = require("vscode-diff.installer")
-  
-  if force then
-    vim.notify("Reinstalling libvscode-diff...", vim.log.levels.INFO)
-  end
-  
-  local success, err = installer.install({ force = force, silent = false })
-  
-  if success then
-    vim.notify("libvscode-diff installation successful!", vim.log.levels.INFO)
-  else
-    vim.notify("Installation failed: " .. (err or "unknown error"), vim.log.levels.ERROR)
   end
 end
 

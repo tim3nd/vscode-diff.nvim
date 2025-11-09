@@ -17,9 +17,9 @@ end
 
 local lib_path = vim.fn.fnamemodify(debug.getinfo(1).source:sub(2), ":h:h:h") .. "/" .. lib_name .. lib_ext
 
--- Check if library exists, if not, try to install it
-if vim.fn.filereadable(lib_path) ~= 1 then
-  local installer = require("vscode-diff.installer")
+-- Check if library exists or needs update, if so, install/update it
+local installer = require("vscode-diff.installer")
+if installer.needs_update() then
   local success, err = installer.install({ silent = false })
   if not success then
     error(string.format(
@@ -27,7 +27,7 @@ if vim.fn.filereadable(lib_path) ~= 1 then
       "Troubleshooting:\n" ..
       "1. Check that curl or wget is installed\n" ..
       "2. Verify internet connectivity to github.com\n" ..
-      "3. Try manual install: :CodeDiffInstall!\n" ..
+      "3. Try manual install: :CodeDiff install!\n" ..
       "4. Or build from source: run 'make' (Unix) or 'build.cmd' (Windows)\n" ..
       "5. Download manually from: https://github.com/esmuellert/vscode-diff.nvim/releases",
       err or "unknown error"

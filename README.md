@@ -84,18 +84,24 @@ cmake -B build -G "MinGW Makefiles" && cmake --build build
 
 ### Managing Library Installation
 
-The plugin includes commands to manage the C library installation:
+The plugin automatically manages the C library installation:
 
+**Automatic Updates:**
+- The library is automatically downloaded on first use
+- When you update the plugin to a new version, the library is automatically updated to match
+- No manual intervention required!
+
+**Manual Installation Commands:**
 ```vim
-" Install the library (if not already installed)
-:CodeDiffInstall
+" Install/update the library manually
+:CodeDiff install
 
-" Force reinstall (useful after plugin updates)
-:CodeDiffInstall!
+" Force reinstall (useful for troubleshooting)
+:CodeDiff install!
 ```
 
 **Version Management:**
-The installer automatically reads the `VERSION` file in the plugin root to download the matching library version from GitHub releases. This ensures compatibility between the Lua code and C library.
+The installer reads the `VERSION` file to download the matching library version from GitHub releases. This ensures compatibility between the Lua code and C library.
 
 ## Usage
 
