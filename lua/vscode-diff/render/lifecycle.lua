@@ -250,8 +250,26 @@ end
 -- @param modified_path string: Modified file path (relative or absolute)
 -- @param original_revision string?: Git revision for original (nil, "WORKING", "STAGED", or commit hash)
 -- @param modified_revision string?: Git revision for modified
-function M.create_session(tabpage, mode, git_root, original_path, modified_path, original_revision, modified_revision)
-  -- Store metadata early (buffers/windows will be added later via complete_session)
+--- Create a new diff session with full initialization
+--- @param tabpage number Tabpage ID
+--- @param mode string "standalone" or "explorer"
+--- @param git_root string? Git repository root
+--- @param original_path string Original file path
+--- @param modified_path string Modified file path
+--- @param original_revision string? Git revision (nil = WORKING, or commit hash, or "STAGED")
+--- @param modified_revision string? Git revision
+--- @param original_bufnr number Original buffer number
+--- @param modified_bufnr number Modified buffer number
+--- @param original_win number Original window ID
+--- @param modified_win number Modified window ID
+--- @param lines_diff table Diff computation result
+function M.create_session(tabpage, mode, git_root, original_path, modified_path, original_revision, modified_revision, 
+                          original_bufnr, modified_bufnr, original_win, modified_win, lines_diff)
+  -- Save buffer states
+  local original_state = save_buffer_state(original_bufnr)
+  local modified_state = save_buffer_state(modified_bufnr)
+
+  -- Create complete session in one step
   active_diffs[tabpage] = {
     -- Mode & Git Context (immutable)
     mode = mode,
@@ -261,55 +279,25 @@ function M.create_session(tabpage, mode, git_root, original_path, modified_path,
     original_revision = original_revision,
     modified_revision = modified_revision,
 
-    -- These will be filled in by complete_session()
-    original_bufnr = nil,
-    modified_bufnr = nil,
-    original_win = nil,
-    modified_win = nil,
-    original_state = nil,
-    modified_state = nil,
+    -- Buffers & Windows
+    original_bufnr = original_bufnr,
+    modified_bufnr = modified_bufnr,
+    original_win = original_win,
+    modified_win = modified_win,
+    original_state = original_state,
+    modified_state = modified_state,
 
     -- Lifecycle state
     suspended = false,
-    stored_diff_result = nil,
-    changedtick = { original = 0, modified = 0 },
-    mtime = { original = nil, modified = nil },
-  }
-end
-
--- Complete session after buffers/windows are created
--- This is called by render/view.lua after creating the view
--- @param tabpage number: Tab page ID
--- @param original_bufnr number: Original buffer number
--- @param modified_bufnr number: Modified buffer number
--- @param original_win number: Original window ID
--- @param modified_win number: Modified window ID
--- @param lines_diff table: Diff result
-function M.complete_session(tabpage, original_bufnr, modified_bufnr, original_win, modified_win, lines_diff)
-  local session = active_diffs[tabpage]
-  if not session then
-    error("Session not found for tabpage " .. tabpage .. ". Call create_session() first.")
-  end
-
-  -- Save buffer state
-  session.original_state = save_buffer_state(original_bufnr)
-  session.modified_state = save_buffer_state(modified_bufnr)
-
-  -- Fill in buffer/window info
-  session.original_bufnr = original_bufnr
-  session.modified_bufnr = modified_bufnr
-  session.original_win = original_win
-  session.modified_win = modified_win
-
-  -- Store diff result
-  session.stored_diff_result = lines_diff
-  session.changedtick = {
-    original = vim.api.nvim_buf_get_changedtick(original_bufnr),
-    modified = vim.api.nvim_buf_get_changedtick(modified_bufnr),
-  }
-  session.mtime = {
-    original = get_file_mtime(original_bufnr),
-    modified = get_file_mtime(modified_bufnr),
+    stored_diff_result = lines_diff,
+    changedtick = {
+      original = vim.api.nvim_buf_get_changedtick(original_bufnr),
+      modified = vim.api.nvim_buf_get_changedtick(modified_bufnr),
+    },
+    mtime = {
+      original = get_file_mtime(original_bufnr),
+      modified = get_file_mtime(modified_bufnr),
+    },
   }
 
   -- Mark windows with restore flag
@@ -347,6 +335,7 @@ function M.complete_session(tabpage, original_bufnr, modified_bufnr, original_wi
     end,
   })
 end
+
 
 -- Cleanup a specific diff session
 -- @param tabpage number: Tab page ID

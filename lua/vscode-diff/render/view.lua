@@ -136,17 +136,6 @@ function M.create(original_lines, modified_lines, session_config, filetype)
 
   local tabpage = vim.api.nvim_get_current_tabpage()
 
-  -- Create lifecycle session with git context
-  lifecycle.create_session(
-    tabpage,
-    session_config.mode,
-    session_config.git_root,
-    session_config.original_path,
-    session_config.modified_path,
-    session_config.original_revision,
-    session_config.modified_revision
-  )
-
   -- Determine if buffers are virtual based on revisions
   local original_is_virtual = is_virtual_revision(session_config.original_revision)
   local modified_is_virtual = is_virtual_revision(session_config.modified_revision)
@@ -224,8 +213,21 @@ function M.create(original_lines, modified_lines, session_config, filetype)
     )
 
     if lines_diff then
-      -- Complete lifecycle session with buffer/window info
-      lifecycle.complete_session(tabpage, original_info.bufnr, modified_info.bufnr, original_win, modified_win, lines_diff)
+      -- Create complete lifecycle session (one step!)
+      lifecycle.create_session(
+        tabpage,
+        session_config.mode,
+        session_config.git_root,
+        session_config.original_path,
+        session_config.modified_path,
+        session_config.original_revision,
+        session_config.modified_revision,
+        original_info.bufnr,
+        modified_info.bufnr,
+        original_win,
+        modified_win,
+        lines_diff
+      )
 
       -- Enable auto-refresh for real file buffers only
       setup_auto_refresh(original_info.bufnr, modified_info.bufnr, original_is_virtual, modified_is_virtual)
