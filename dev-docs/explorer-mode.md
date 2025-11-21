@@ -11,6 +11,7 @@ The CodeDiff explorer mode provides a VSCode-like interface for viewing git chan
 1. **Git Status API** (`lua/vscode-diff/git.lua`)
    - `get_status(git_root, callback)`: Async function to retrieve git status
    - Returns files grouped by staged/unstaged status
+   - `get_diff_revision(revision, git_root, callback)`: Async function to get diff against a specific revision
    - Follows the async pattern of other git operations
 
 2. **Explorer UI** (`lua/vscode-diff/render/explorer.lua`)
@@ -25,6 +26,7 @@ The CodeDiff explorer mode provides a VSCode-like interface for viewing git chan
 
 ### User Flow
 
+#### Current Changes (`:CodeDiff`)
 1. User runs `:CodeDiff` in a git repository
 2. Git status is retrieved asynchronously
 3. New tab opens with:
@@ -32,6 +34,13 @@ The CodeDiff explorer mode provides a VSCode-like interface for viewing git chan
    - Right panes (75% width): Side-by-side diff view
 4. First file is automatically selected and displayed
 5. Clicking any file in explorer updates the diff view
+
+#### Revision Comparison (`:CodeDiff <revision>`)
+1. User runs `:CodeDiff HEAD~5` (or any revision) in a git repository
+2. Git diff between working tree and specified revision is retrieved
+3. New tab opens with explorer showing all changed files
+4. Files are compared against the specified revision instead of HEAD
+5. Useful for reviewing all changes since a specific commit, branch, or tag
 
 ## Features
 
@@ -97,11 +106,29 @@ Files can appear in both staged and unstaged if they have changes in both areas.
 
 1. User clicks file in explorer (or presses Enter)
 2. `on_file_select(file_data)` callback triggered
-3. Resolve HEAD to commit hash
-4. Fetch file content from HEAD commit
+3. Resolve base revision (HEAD or custom revision) to commit hash
+4. Fetch file content from the specified commit
 5. Read current working directory file
-6. Call `view.update(tabpage, lines_git, lines_current, session_config)`
+6. Call `view.update(tabpage, session_config)`
 7. Diff is recomputed and displayed
+
+### Revision Support
+
+The explorer supports two modes:
+
+**Status Mode (`:CodeDiff`):**
+- Shows changes against HEAD
+- Files grouped by "Changes" (unstaged) and "Staged Changes" (staged)
+- Handles staged vs unstaged comparison logic
+
+**Revision Mode (`:CodeDiff <revision>`):**
+- Simple comparison: WORKING vs specified revision
+- Single "Changes" group showing all different files
+- No staged/unstaged complexity
+- Examples:
+  - `:CodeDiff HEAD~5` - Compare working tree vs 5 commits ago
+  - `:CodeDiff main` - Compare working tree vs main branch
+  - `:CodeDiff abc123` - Compare working tree vs specific commit
 
 ### Session Management
 

@@ -273,7 +273,7 @@ function M.get_status(git_root, callback)
           local index_status = line:sub(1, 1)
           local worktree_status = line:sub(2, 2)
           local path_part = line:sub(4)
-          
+
           -- Handle renames: "old_path -> new_path"
           local old_path, new_path = path_part:match("^(.+) %-> (.+)$")
           local path = old_path and new_path or path_part  -- Use new_path for display if rename
@@ -294,6 +294,53 @@ function M.get_status(git_root, callback)
               path = path,
               status = worktree_status == "?" and "??" or worktree_status,
               old_path = is_rename and old_path or nil,
+            })
+          end
+        end
+      end
+
+      callback(nil, result)
+    end
+  )
+end
+
+-- Get diff between a revision and working tree (async)
+-- revision: git revision (e.g., "HEAD", "HEAD~1", commit hash, branch name)
+-- git_root: absolute path to git repository root
+-- callback: function(err, status_result) where status_result has same format as get_status
+function M.get_diff_revision(revision, git_root, callback)
+  run_git_async(
+    { "diff", "--name-status", "-M", revision },
+    { cwd = git_root },
+    function(err, output)
+      if err then
+        callback(err, nil)
+        return
+      end
+
+      local result = {
+        unstaged = {},
+        staged = {}
+      }
+
+      for line in output:gmatch("[^\r\n]+") do
+        if #line > 0 then
+          local parts = vim.split(line, "\t")
+          if #parts >= 2 then
+            local status = parts[1]:sub(1, 1)
+            local path = parts[2]
+            local old_path = nil
+
+            -- Handle renames (R100 or similar)
+            if status == "R" and #parts >= 3 then
+              old_path = parts[2]
+              path = parts[3]
+            end
+
+            table.insert(result.unstaged, {
+              path = path,
+              status = status,
+              old_path = old_path,
             })
           end
         end

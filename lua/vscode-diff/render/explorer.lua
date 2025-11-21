@@ -49,20 +49,31 @@ local function create_file_nodes(files, git_root, group)
 end
 
 -- Create explorer tree structure
-local function create_tree_data(status_result, git_root)
+local function create_tree_data(status_result, git_root, base_revision)
   local unstaged_nodes = create_file_nodes(status_result.unstaged, git_root, "unstaged")
   local staged_nodes = create_file_nodes(status_result.staged, git_root, "staged")
 
-  return {
-    Tree.Node({
-      text = string.format("Changes (%d)", #status_result.unstaged),
-      data = { type = "group", name = "unstaged" },
-    }, unstaged_nodes),
-    Tree.Node({
-      text = string.format("Staged Changes (%d)", #status_result.staged),
-      data = { type = "group", name = "staged" },
-    }, staged_nodes),
-  }
+  if base_revision then
+    -- Revision mode: single group showing all changes
+    return {
+      Tree.Node({
+        text = string.format("Changes (%d)", #status_result.unstaged),
+        data = { type = "group", name = "unstaged" },
+      }, unstaged_nodes),
+    }
+  else
+    -- Status mode: separate staged/unstaged groups
+    return {
+      Tree.Node({
+        text = string.format("Changes (%d)", #status_result.unstaged),
+        data = { type = "group", name = "unstaged" },
+      }, unstaged_nodes),
+      Tree.Node({
+        text = string.format("Staged Changes (%d)", #status_result.staged),
+        data = { type = "group", name = "staged" },
+      }, staged_nodes),
+    }
+  end
 end
 
 -- Render tree node
@@ -139,7 +150,7 @@ local function prepare_node(node, max_width)
 end
 
 -- Create and show explorer
-function M.create(status_result, git_root, tabpage, width)
+function M.create(status_result, git_root, tabpage, width, base_revision)
   -- Use provided width or default to 40 columns (same as neo-tree)
   local explorer_width = width or 40
   
@@ -150,7 +161,7 @@ function M.create(status_result, git_root, tabpage, width)
     local lifecycle = require('vscode-diff.render.lifecycle')
     
     local file_path = file_data.path
-    local old_path = file_data.old_path  -- For renames: path in HEAD
+    local old_path = file_data.old_path  -- For renames: path in original revision
     local abs_path = git_root .. "/" .. file_path
     local group = file_data.group or "unstaged"
 
@@ -173,8 +184,9 @@ function M.create(status_result, git_root, tabpage, width)
       end
     end
 
-    -- Resolve HEAD to commit hash first
-    git.resolve_revision("HEAD", git_root, function(err_resolve, commit_hash)
+    -- Use base_revision if provided, otherwise default to HEAD
+    local target_revision = base_revision or "HEAD"
+    git.resolve_revision(target_revision, git_root, function(err_resolve, commit_hash)
       if err_resolve then
         vim.schedule(function()
           vim.notify(err_resolve, vim.log.levels.ERROR)
@@ -182,7 +194,21 @@ function M.create(status_result, git_root, tabpage, width)
         return
       end
 
-      if group == "staged" then
+      if base_revision then
+        -- Revision mode: Simple comparison of working tree vs base_revision
+        vim.schedule(function()
+          ---@type SessionConfig
+          local session_config = {
+            mode = "explorer",
+            git_root = git_root,
+            original_path = old_path or file_path,
+            modified_path = abs_path,
+            original_revision = commit_hash,
+            modified_revision = nil,
+          }
+          view.update(tabpage, session_config, true)
+        end)
+      elseif group == "staged" then
         -- Staged changes: Compare staged (:0) vs HEAD (both virtual)
         -- For renames: old_path in HEAD, new path in staging
         -- No pre-fetching needed, virtual files will load via BufReadCmd
@@ -210,7 +236,7 @@ function M.create(status_result, git_root, tabpage, width)
         end
 
         local original_revision = is_staged and ":0" or commit_hash
-        
+
         -- No pre-fetching needed, buffers will load content
         vim.schedule(function()
           ---@type SessionConfig
@@ -250,7 +276,7 @@ function M.create(status_result, git_root, tabpage, width)
   split:mount()
 
   -- Create tree with buffer number
-  local tree_data = create_tree_data(status_result, git_root)
+  local tree_data = create_tree_data(status_result, git_root, base_revision)
   local tree = Tree({
     bufnr = split.bufnr,
     nodes = tree_data,
@@ -402,6 +428,7 @@ function M.create(status_result, git_root, tabpage, width)
     bufnr = split.bufnr,
     winid = split.winid,
     git_root = git_root,
+    base_revision = base_revision,
     on_file_select = nil,  -- Will be set below
     current_file_path = nil,  -- Track currently selected file
   }
@@ -484,7 +511,7 @@ function M.refresh(explorer)
   local current_node = explorer.tree:get_node()
   local current_path = current_node and current_node.data and current_node.data.path
   
-  git.get_status(explorer.git_root, function(err, status_result)
+  local function process_result(err, status_result)
     vim.schedule(function()
       if err then
         vim.notify("Failed to refresh: " .. err, vim.log.levels.ERROR)
@@ -492,19 +519,7 @@ function M.refresh(explorer)
       end
       
       -- Rebuild tree nodes using same structure as create_tree_data
-      local unstaged_nodes = create_file_nodes(status_result.unstaged, explorer.git_root, "unstaged")
-      local staged_nodes = create_file_nodes(status_result.staged, explorer.git_root, "staged")
-      
-      local root_nodes = {
-        Tree.Node({
-          text = string.format("Changes (%d)", #status_result.unstaged),
-          data = { type = "group", name = "unstaged" },
-        }, unstaged_nodes),
-        Tree.Node({
-          text = string.format("Staged Changes (%d)", #status_result.staged),
-          data = { type = "group", name = "staged" },
-        }, staged_nodes),
-      }
+      local root_nodes = create_tree_data(status_result, explorer.git_root, explorer.base_revision)
       
       -- Expand all groups
       for _, node in ipairs(root_nodes) do
@@ -526,7 +541,14 @@ function M.refresh(explorer)
         end
       end
     end)
-  end)
+  end
+  
+  -- Use appropriate git function based on mode
+  if explorer.base_revision then
+    git.get_diff_revision(explorer.base_revision, explorer.git_root, process_result)
+  else
+    git.get_status(explorer.git_root, process_result)
+  end
 end
 
 -- Get flat list of all files from tree (unstaged + staged)
