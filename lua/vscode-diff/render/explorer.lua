@@ -154,6 +154,60 @@ function M.create(status_result, git_root, tabpage, width, base_revision)
   -- Use provided width or default to 40 columns (same as neo-tree)
   local explorer_width = width or 40
   
+  -- Create split window for explorer
+  local split = Split({
+    relative = "editor",
+    position = "left",
+    size = explorer_width,
+    buf_options = {
+      modifiable = false,
+      readonly = true,
+      filetype = "vscode-diff-explorer",
+    },
+    win_options = {
+      number = false,
+      relativenumber = false,
+      cursorline = true,
+      wrap = false,
+    },
+  })
+
+  -- Mount split first to get bufnr
+  split:mount()
+
+  -- Create tree with buffer number
+  local tree_data = create_tree_data(status_result, git_root, base_revision)
+  local tree = Tree({
+    bufnr = split.bufnr,
+    nodes = tree_data,
+    prepare_node = function(node)
+      return prepare_node(node, explorer_width)
+    end,
+  })
+
+  -- Expand all groups by default before first render
+  for _, node in ipairs(tree_data) do
+    if node.data and node.data.type == "group" then
+      node:expand()
+    end
+  end
+
+  -- Render tree
+  tree:render()
+
+  -- Create explorer object early so we can reference it in keymaps
+  local explorer = {
+    split = split,
+    tree = tree,
+    bufnr = split.bufnr,
+    winid = split.winid,
+    git_root = git_root,
+    base_revision = base_revision,
+    status_result = status_result, -- Store initial status result
+    on_file_select = nil,  -- Will be set below
+    current_file_path = nil,  -- Track currently selected file
+  }
+
   -- File selection callback - manages its own lifecycle
   local function on_file_select(file_data)
     local git = require('vscode-diff.git')
@@ -228,7 +282,9 @@ function M.create(status_result, git_root, tabpage, width, base_revision)
         -- Unstaged changes: Compare working tree vs staged (if exists) or HEAD
         -- Check if file is in staged list
         local is_staged = false
-        for _, staged_file in ipairs(status_result.staged) do
+        -- Use current status_result from explorer object
+        local current_status = explorer.status_result or status_result
+        for _, staged_file in ipairs(current_status.staged) do
           if staged_file.path == file_path then
             is_staged = true
             break
@@ -253,59 +309,6 @@ function M.create(status_result, git_root, tabpage, width, base_revision)
       end
     end)
   end
-  
-  -- Create split window for explorer
-  local split = Split({
-    relative = "editor",
-    position = "left",
-    size = explorer_width,
-    buf_options = {
-      modifiable = false,
-      readonly = true,
-      filetype = "vscode-diff-explorer",
-    },
-    win_options = {
-      number = false,
-      relativenumber = false,
-      cursorline = true,
-      wrap = false,
-    },
-  })
-
-  -- Mount split first to get bufnr
-  split:mount()
-
-  -- Create tree with buffer number
-  local tree_data = create_tree_data(status_result, git_root, base_revision)
-  local tree = Tree({
-    bufnr = split.bufnr,
-    nodes = tree_data,
-    prepare_node = function(node)
-      return prepare_node(node, explorer_width)
-    end,
-  })
-
-  -- Expand all groups by default before first render
-  for _, node in ipairs(tree_data) do
-    if node.data and node.data.type == "group" then
-      node:expand()
-    end
-  end
-
-  -- Render tree
-  tree:render()
-
-  -- Create explorer object early so we can reference it in keymaps
-  local explorer = {
-    split = split,
-    tree = tree,
-    bufnr = split.bufnr,
-    winid = split.winid,
-    git_root = git_root,
-    base_revision = base_revision,
-    on_file_select = nil,  -- Will be set below
-    current_file_path = nil,  -- Track currently selected file
-  }
   
   -- Wrap on_file_select to track current file
   explorer.on_file_select = function(file_data)
@@ -526,6 +529,9 @@ function M.refresh(explorer)
       -- Update tree
       explorer.tree:set_nodes(root_nodes)
       explorer.tree:render()
+      
+      -- Update status result for file selection logic
+      explorer.status_result = status_result
       
       -- Try to restore selection
       if current_path then
