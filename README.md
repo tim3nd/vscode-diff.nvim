@@ -149,6 +149,9 @@ Open an interactive file explorer showing changed files:
 
 " Compare against a specific commit
 :CodeDiff abc123
+
+" Compare two revisions (e.g. HEAD vs main)
+:CodeDiff main HEAD
 ```
 
 ### Git Diff Mode
@@ -170,6 +173,9 @@ Compare the current buffer with a git revision:
 
 " Compare with tag
 :CodeDiff file v1.0.0
+
+" Compare two revisions for current file
+:CodeDiff file main HEAD
 ```
 
 **Requirements:**

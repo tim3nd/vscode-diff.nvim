@@ -482,7 +482,7 @@ function M.create(session_config, filetype)
     local explorer = require('vscode-diff.render.explorer')
     local status_result = session_config.explorer_data.status_result
     
-    local explorer_obj = explorer.create(status_result, session_config.git_root, tabpage, explorer_width, session_config.original_revision)
+    local explorer_obj = explorer.create(status_result, session_config.git_root, tabpage, explorer_width, session_config.original_revision, session_config.modified_revision)
     
     -- Store explorer reference in lifecycle
     lifecycle.set_explorer(tabpage, explorer_obj)

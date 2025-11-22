@@ -351,4 +351,56 @@ function M.get_diff_revision(revision, git_root, callback)
   )
 end
 
+-- Get diff between two revisions (async)
+-- rev1: original revision (e.g., commit hash)
+-- rev2: modified revision (e.g., commit hash)
+-- git_root: absolute path to git repository root
+-- callback: function(err, status_result)
+function M.get_diff_revisions(rev1, rev2, git_root, callback)
+  run_git_async(
+    { "diff", "--name-status", "-M", rev1, rev2 },
+    { cwd = git_root },
+    function(err, output)
+      if err then
+        callback(err, nil)
+        return
+      end
+
+      local result = {
+        unstaged = {},
+        staged = {}
+      }
+
+      -- For revision comparison, we treat everything as "staged" (or just one list)
+      -- But to keep explorer compatible, we'll put them in 'staged' as they are committed changes
+      -- relative to each other.
+      
+      for line in output:gmatch("[^\r\n]+") do
+        if #line > 0 then
+          local parts = vim.split(line, "\t")
+          if #parts >= 2 then
+            local status = parts[1]:sub(1, 1)
+            local path = parts[2]
+            local old_path = nil
+
+            -- Handle renames (R100 or similar)
+            if status == "R" and #parts >= 3 then
+              old_path = parts[2]
+              path = parts[3]
+            end
+
+            table.insert(result.unstaged, {
+              path = path,
+              status = status,
+              old_path = old_path,
+            })
+          end
+        end
+      end
+
+      callback(nil, result)
+    end
+  )
+end
+
 return M

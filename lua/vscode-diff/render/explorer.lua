@@ -151,7 +151,7 @@ local function prepare_node(node, max_width)
 end
 
 -- Create and show explorer
-function M.create(status_result, git_root, tabpage, width, base_revision)
+function M.create(status_result, git_root, tabpage, width, base_revision, target_revision)
   -- Use provided width or default to 40 columns (same as neo-tree)
   local explorer_width = width or 40
   
@@ -206,6 +206,7 @@ function M.create(status_result, git_root, tabpage, width, base_revision)
     winid = split.winid,
     git_root = git_root,
     base_revision = base_revision,
+    target_revision = target_revision,
     status_result = status_result, -- Store initial status result
     on_file_select = nil,  -- Will be set below
     current_file_path = nil,  -- Track currently selected file
@@ -241,9 +242,26 @@ function M.create(status_result, git_root, tabpage, width, base_revision)
       end
     end
 
+    if base_revision and target_revision and target_revision ~= "WORKING" then
+      -- Two revision mode: Compare base vs target
+      vim.schedule(function()
+        ---@type SessionConfig
+        local session_config = {
+          mode = "explorer",
+          git_root = git_root,
+          original_path = old_path or file_path,
+          modified_path = file_path,
+          original_revision = base_revision,
+          modified_revision = target_revision,
+        }
+        view.update(tabpage, session_config, true)
+      end)
+      return
+    end
+
     -- Use base_revision if provided, otherwise default to HEAD
-    local target_revision = base_revision or "HEAD"
-    git.resolve_revision(target_revision, git_root, function(err_resolve, commit_hash)
+    local target_revision_single = base_revision or "HEAD"
+    git.resolve_revision(target_revision_single, git_root, function(err_resolve, commit_hash)
       if err_resolve then
         vim.schedule(function()
           vim.notify(err_resolve, vim.log.levels.ERROR)
@@ -556,7 +574,9 @@ function M.refresh(explorer)
   end
   
   -- Use appropriate git function based on mode
-  if explorer.base_revision then
+  if explorer.base_revision and explorer.target_revision and explorer.target_revision ~= "WORKING" then
+    git.get_diff_revisions(explorer.base_revision, explorer.target_revision, explorer.git_root, process_result)
+  elseif explorer.base_revision then
     git.get_diff_revision(explorer.base_revision, explorer.git_root, process_result)
   else
     git.get_status(explorer.git_root, process_result)
