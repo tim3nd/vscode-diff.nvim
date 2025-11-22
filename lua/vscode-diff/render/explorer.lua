@@ -88,14 +88,19 @@ local function prepare_node(node, max_width, selected_path)
     line:append(icon .. " ", "Directory")
     line:append(node.text, "Directory")
   else
+    local is_selected = data.path and data.path == selected_path
+    local function get_hl(default)
+      return is_selected and "CodeDiffExplorerSelected" or (default or "Normal")
+    end
+
     -- File entry - VSCode style: filename (bold) + directory (dimmed) + status (right-aligned)
     local indent = string.rep("  ", node:get_depth() - 1)
-    line:append(indent)
+    line:append(indent, get_hl("Normal"))
     
     local icon_part = ""
     if data.icon then
       icon_part = data.icon .. " "
-      line:append(icon_part, data.icon_color or "Normal")
+      line:append(icon_part, get_hl(data.icon_color))
     end
     
     -- Status symbol at the end (e.g., "M", "D", "??")
@@ -131,24 +136,20 @@ local function prepare_node(node, max_width, selected_path)
       end
     end
     
-    -- Determine highlight for filename
-    local is_selected = data.path and data.path == selected_path
-    local filename_hl = is_selected and "CodeDiffExplorerSelected" or "Normal"
-    
     -- Append filename (normal weight) and directory (dimmed with smaller font)
-    line:append(filename, filename_hl)
+    line:append(filename, get_hl("Normal"))
     if #directory > 0 then
-      line:append(" ", "Normal")
-      line:append(directory, "ExplorerDirectorySmall")  -- Smaller dimmed style
+      line:append(" ", get_hl("Normal"))
+      line:append(directory, get_hl("ExplorerDirectorySmall"))  -- Smaller dimmed style
     end
     
     -- Add padding to push status symbol to the right edge
     local content_len = vim.fn.strdisplaywidth(filename) + space_len + vim.fn.strdisplaywidth(directory)
     local padding_needed = available_for_content - content_len + 2
     if padding_needed > 0 then
-      line:append(string.rep(" ", padding_needed))
+      line:append(string.rep(" ", padding_needed), get_hl("Normal"))
     end
-    line:append(status_symbol, data.status_color or "Normal")
+    line:append(status_symbol, get_hl(data.status_color))
   end
 
   return line
