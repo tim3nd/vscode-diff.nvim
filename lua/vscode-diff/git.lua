@@ -159,6 +159,7 @@ end
 -- callback: function(err, git_root)
 function M.get_git_root(file_path, callback)
   local dir = vim.fn.fnamemodify(file_path, ":h")
+  -- Normalize path separators for consistency
   dir = dir:gsub("\\", "/")
 
   run_git_async(
@@ -169,8 +170,8 @@ function M.get_git_root(file_path, callback)
         callback("Not in a git repository", nil)
       else
         local git_root = vim.trim(output)
+        -- Ensure git_root uses forward slashes for consistency
         git_root = git_root:gsub("\\", "/")
-        print("DEBUG: get_git_root found: " .. git_root)
         callback(nil, git_root)
       end
     end
@@ -191,7 +192,6 @@ end
 -- git_root: absolute path to git repository root
 -- callback: function(err, commit_hash)
 function M.resolve_revision(revision, git_root, callback)
-  print("DEBUG: resolve_revision " .. revision .. " in " .. git_root)
   run_git_async(
     { "rev-parse", "--verify", revision },
     { cwd = git_root },
