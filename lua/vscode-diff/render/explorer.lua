@@ -230,6 +230,7 @@ function M.create(status_result, git_root, tabpage, width, base_revision, target
     status_result = status_result, -- Store initial status result
     on_file_select = nil,  -- Will be set below
     current_file_path = nil,  -- Track currently selected file
+    is_hidden = false,  -- Track visibility state
   }
 
   -- File selection callback - manages its own lifecycle
@@ -730,6 +731,22 @@ function M.navigate_prev(explorer)
   
   -- Trigger file select
   explorer.on_file_select(prev_file.data)
+end
+
+-- Toggle explorer visibility (hide/show)
+function M.toggle_visibility(explorer)
+  if not explorer or not explorer.split then
+    return
+  end
+
+  -- Track visibility state on the explorer object
+  if explorer.is_hidden then
+    explorer.split:show()
+    explorer.is_hidden = false
+  else
+    explorer.split:hide()
+    explorer.is_hidden = true
+  end
 end
 
 return M

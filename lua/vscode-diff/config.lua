@@ -28,7 +28,8 @@ M.defaults = {
   -- Keymaps
   keymaps = {
     view = {
-      quit = "q",       -- Close diff tab
+      quit = "q",           -- Close diff tab
+      toggle_explorer = "e", -- Toggle explorer visibility (explorer mode only)
       next_hunk = "]c",
       prev_hunk = "[c",
       next_file = "]f",

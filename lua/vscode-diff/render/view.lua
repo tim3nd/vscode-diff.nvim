@@ -241,6 +241,17 @@ local function setup_all_keymaps(tabpage, original_bufnr, modified_bufnr, is_exp
     vim.cmd('tabclose')
   end
 
+  -- Helper: Toggle explorer visibility (explorer mode only)
+  local function toggle_explorer()
+    local explorer_obj = lifecycle.get_explorer(tabpage)
+    if not explorer_obj then
+      vim.notify("No explorer found for this tab", vim.log.levels.WARN)
+      return
+    end
+    local explorer = require('vscode-diff.render.explorer')
+    explorer.toggle_visibility(explorer_obj)
+  end
+
   -- ========================================================================
   -- Bind all keymaps using unified API (one place for all keymaps!)
   -- ========================================================================
@@ -256,6 +267,11 @@ local function setup_all_keymaps(tabpage, original_bufnr, modified_bufnr, is_exp
   end
   if keymaps.prev_hunk then
     lifecycle.set_tab_keymap(tabpage, 'n', keymaps.prev_hunk, navigate_prev_hunk, { desc = 'Previous hunk' })
+  end
+
+  -- Explorer toggle (e) - only in explorer mode
+  if is_explorer_mode and keymaps.toggle_explorer then
+    lifecycle.set_tab_keymap(tabpage, 'n', keymaps.toggle_explorer, toggle_explorer, { desc = 'Toggle explorer visibility' })
   end
 
   -- File navigation (]f, [f) - only in explorer mode
