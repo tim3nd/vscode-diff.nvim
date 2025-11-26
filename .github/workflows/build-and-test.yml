@@ -133,6 +133,7 @@ jobs:
               # Fix all SCL repos after installation (SCLo repos also need vault fix)
               sed -i 's|^mirrorlist=|#mirrorlist=|g' /etc/yum.repos.d/*.repo
               sed -i 's|^#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/*.repo
+              yum clean all
               yum install -y devtoolset-11-gcc devtoolset-11-gcc-c++ cmake3 make
               source /opt/rh/devtoolset-11/enable
               ln -s /usr/bin/cmake3 /usr/local/bin/cmake
