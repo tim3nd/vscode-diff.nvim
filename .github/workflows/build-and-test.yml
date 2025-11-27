@@ -163,6 +163,8 @@ jobs:
       - name: Run C unit tests (Ubuntu)
         if: startsWith(matrix.runs-on, 'ubuntu')
         run: |
+          # CTest config has Docker paths (/workspace), regenerate for Ubuntu host paths
+          cmake -B build -S .
           cd build
           ctest --output-on-failure
 
