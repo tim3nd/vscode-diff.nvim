@@ -57,76 +57,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential cmake valgrind
 
-      - name: Install Neovim (Ubuntu)
-        if: startsWith(matrix.runs-on, 'ubuntu')
-        run: |
-          # Install dependencies
-          sudo apt-get update
-          sudo apt-get install -y curl
-
-          # Determine architecture
-          ARCH="linux-x86_64"
-          if [ "${{ matrix.arch }}" = "arm64" ]; then
-            ARCH="linux-arm64"
-          fi
-          
-          # Download Neovim nightly
-          echo "Downloading Neovim ($ARCH)..."
-          curl -LO https://github.com/neovim/neovim/releases/download/nightly/nvim-$ARCH.tar.gz
-          
-          # Extract and install
-          tar xzf nvim-$ARCH.tar.gz
-          sudo cp -r nvim-$ARCH/* /usr/local/
-          
-          # Verify installation
-          nvim --version | head -n 1
-
-      - name: Install Neovim (macOS)
-        if: startsWith(matrix.runs-on, 'macos')
-        run: |
-          # Determine architecture
-          ARCH="macos-arm64"
-          if [ "${{ matrix.arch }}" = "x64" ]; then
-            ARCH="macos-x86_64"
-          fi
-
-          # Download Neovim nightly
-          echo "Downloading Neovim ($ARCH)..."
-          curl -LO https://github.com/neovim/neovim/releases/download/nightly/nvim-$ARCH.tar.gz
-
-          # Extract and install
-          tar xzf nvim-$ARCH.tar.gz
-          sudo cp -r nvim-$ARCH/* /usr/local/
-
-          # Verify installation
-          nvim --version | head -n 1
+      - name: Setup Neovim
+        uses: ./.github/actions/setup-neovim
+        with:
+          arch: ${{ matrix.arch }}
 
       - name: Set up MSVC (Windows)
         if: startsWith(matrix.runs-on, 'windows')
         uses: ilammy/msvc-dev-cmd@v1
-
-      - name: Install Neovim (Windows)
-        if: startsWith(matrix.runs-on, 'windows')
-        shell: pwsh
-        run: |
-          $arch = if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "arm64" } else { "x64" }
-          $nvimVersion = "nightly"
-          $archSuffix = if ($arch -eq "arm64") { "-arm64" } else { "64" }
-          $downloadUrl = "https://github.com/neovim/neovim/releases/download/$nvimVersion/nvim-win$archSuffix.zip"
-          $installPath = "C:\tools\neovim"
-          
-          Write-Host "Downloading Neovim $arch from $downloadUrl"
-          Invoke-WebRequest -Uri $downloadUrl -OutFile "$env:TEMP\nvim.zip"
-          
-          Write-Host "Extracting to $installPath"
-          New-Item -ItemType Directory -Force -Path $installPath | Out-Null
-          Expand-Archive -Path "$env:TEMP\nvim.zip" -DestinationPath $installPath -Force
-          
-          $nvimBinPath = "$installPath\nvim-win$archSuffix\bin"
-          Write-Host "Adding $nvimBinPath to PATH"
-          echo "$nvimBinPath" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          
-          & "$nvimBinPath\nvim.exe" --version | Select-Object -First 1
 
       - name: Build library (Ubuntu in CentOS 7 Docker for GLIBC 2.17 compatibility)
         if: startsWith(matrix.runs-on, 'ubuntu')

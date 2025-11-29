@@ -20,6 +20,11 @@ jobs:
   regression-check:
     uses: ./.github/workflows/regression-check.yml
   
+  # Standalone build test - validates build.sh/build.cmd work on all platforms
+  # Runs in parallel with regression-check (no dependency)
+  standalone-build-test:
+    uses: ./.github/workflows/standalone-build-test.yml
+  
   # Build and test runs ONLY IF regression check passes
   # This prevents wasting CI resources on builds that will fail PR anyway
   build-and-test:
