@@ -25,8 +25,6 @@ jobs:
   standalone-build-test:
     uses: ./.github/workflows/standalone-build-test.yml
   
-  # Build and test runs ONLY IF regression check passes
-  # This prevents wasting CI resources on builds that will fail PR anyway
+  # Build and test runs in parallel with other checks
   build-and-test:
-    needs: regression-check
     uses: ./.github/workflows/build-and-test.yml
