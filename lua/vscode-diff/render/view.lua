@@ -727,6 +727,82 @@ function M.update(tabpage, session_config, auto_scroll_to_first_hunk)
     session_config.modified_path
   )
 
+  -- Determine if we need to wait for virtual file content
+  -- Since we force reload virtual files, we always wait for the load event
+  -- Use a state table to avoid closure capture issues in autocmd
+  local wait_state = {
+    original = original_is_virtual and original_info.needs_edit,
+    modified = modified_is_virtual and modified_info.needs_edit
+  }
+
+  local render_everything = function()
+    -- Always read from buffers (single source of truth)
+    local original_lines = vim.api.nvim_buf_get_lines(original_info.bufnr, 0, -1, false)
+    local modified_lines = vim.api.nvim_buf_get_lines(modified_info.bufnr, 0, -1, false)
+    
+    -- Compute and render (scrollbind will be handled inside)
+    -- Use the provided auto_scroll parameter, default to false if not specified
+    local should_auto_scroll = auto_scroll_to_first_hunk == true
+    local lines_diff = compute_and_render(
+      original_info.bufnr, modified_info.bufnr,
+      original_lines, modified_lines,
+      original_is_virtual, modified_is_virtual,
+      original_win, modified_win,
+      should_auto_scroll
+    )
+
+    if lines_diff then
+      -- Update lifecycle session with all new state
+      lifecycle.update_buffers(tabpage, original_info.bufnr, modified_info.bufnr)
+      lifecycle.update_git_root(tabpage, session_config.git_root)
+      lifecycle.update_revisions(tabpage, session_config.original_revision, session_config.modified_revision)
+      lifecycle.update_diff_result(tabpage, lines_diff)
+      lifecycle.update_changedtick(
+        tabpage,
+        vim.api.nvim_buf_get_changedtick(original_info.bufnr),
+        vim.api.nvim_buf_get_changedtick(modified_info.bufnr)
+      )
+
+      -- Re-enable auto-refresh for real file buffers
+      setup_auto_refresh(original_info.bufnr, modified_info.bufnr, original_is_virtual, modified_is_virtual)
+
+      -- Setup all keymaps in one place (centralized)
+      local is_explorer_mode = session.mode == "explorer"
+      setup_all_keymaps(tabpage, original_info.bufnr, modified_info.bufnr, is_explorer_mode)
+    end
+  end
+
+  -- Set up autocmd to wait for virtual file loads BEFORE triggering any async operations
+  -- This prevents race conditions where fast systems complete before the listener is ready
+  local autocmd_group = nil
+  if wait_state.original or wait_state.modified then
+    autocmd_group = vim.api.nvim_create_augroup('VscodeDiffVirtualFileUpdate_' .. tabpage, { clear = true })
+
+    vim.api.nvim_create_autocmd('User', {
+      group = autocmd_group,
+      pattern = 'VscodeDiffVirtualFileLoaded',
+      callback = function(event)
+        if not event.data or not event.data.buf then return end
+
+        local loaded_buf = event.data.buf
+
+        -- Mark buffers as loaded when event fires
+        if wait_state.original and loaded_buf == original_info.bufnr then
+          wait_state.original = false
+        end
+        if wait_state.modified and loaded_buf == modified_info.bufnr then
+          wait_state.modified = false
+        end
+
+        -- Render once all waited buffers are ready
+        if not wait_state.original and not wait_state.modified then
+          vim.schedule(render_everything)
+          vim.api.nvim_del_augroup_by_id(autocmd_group)
+        end
+      end,
+    })
+  end
+
   -- Load buffers into windows
   -- For existing buffers: use nvim_win_set_buf() directly (no conflicts, no temp buffers needed)
   -- For new virtual files: use :edit! to trigger BufReadCmd for content loading
@@ -848,80 +924,8 @@ function M.update(tabpage, session_config, auto_scroll_to_first_hunk)
   -- Note: We need to update lifecycle to support this, or recreate session
   -- For now, we'll update the stored diff result and metadata
 
-  -- Determine if we need to wait for virtual file content
-  -- Since we force reload virtual files, we always wait for the load event
-  -- Use a state table to avoid closure capture issues in autocmd
-  local wait_state = {
-    original = original_is_virtual and original_info.needs_edit,
-    modified = modified_is_virtual and modified_info.needs_edit
-  }
-
-  local render_everything = function()
-    -- Always read from buffers (single source of truth)
-    local original_lines = vim.api.nvim_buf_get_lines(original_info.bufnr, 0, -1, false)
-    local modified_lines = vim.api.nvim_buf_get_lines(modified_info.bufnr, 0, -1, false)
-    
-    -- Compute and render (scrollbind will be handled inside)
-    -- Use the provided auto_scroll parameter, default to false if not specified
-    local should_auto_scroll = auto_scroll_to_first_hunk == true
-    local lines_diff = compute_and_render(
-      original_info.bufnr, modified_info.bufnr,
-      original_lines, modified_lines,
-      original_is_virtual, modified_is_virtual,
-      original_win, modified_win,
-      should_auto_scroll
-    )
-
-    if lines_diff then
-      -- Update lifecycle session with all new state
-      lifecycle.update_buffers(tabpage, original_info.bufnr, modified_info.bufnr)
-      lifecycle.update_git_root(tabpage, session_config.git_root)
-      lifecycle.update_revisions(tabpage, session_config.original_revision, session_config.modified_revision)
-      lifecycle.update_diff_result(tabpage, lines_diff)
-      lifecycle.update_changedtick(
-        tabpage,
-        vim.api.nvim_buf_get_changedtick(original_info.bufnr),
-        vim.api.nvim_buf_get_changedtick(modified_info.bufnr)
-      )
-
-      -- Re-enable auto-refresh for real file buffers
-      setup_auto_refresh(original_info.bufnr, modified_info.bufnr, original_is_virtual, modified_is_virtual)
-
-      -- Setup all keymaps in one place (centralized)
-      local is_explorer_mode = session.mode == "explorer"
-      setup_all_keymaps(tabpage, original_info.bufnr, modified_info.bufnr, is_explorer_mode)
-    end
-  end
-
-  -- Choose timing based on buffer types
-  if wait_state.original or wait_state.modified then
-    -- Virtual file(s): Wait for BufReadCmd to load content
-    local group = vim.api.nvim_create_augroup('VscodeDiffVirtualFileUpdate_' .. tabpage, { clear = true })
-
-    vim.api.nvim_create_autocmd('User', {
-      group = group,
-      pattern = 'VscodeDiffVirtualFileLoaded',
-      callback = function(event)
-        if not event.data or not event.data.buf then return end
-
-        local loaded_buf = event.data.buf
-
-        -- Mark buffers as loaded when event fires
-        if wait_state.original and loaded_buf == original_info.bufnr then
-          wait_state.original = false
-        end
-        if wait_state.modified and loaded_buf == modified_info.bufnr then
-          wait_state.modified = false
-        end
-
-        -- Render once all waited buffers are ready
-        if not wait_state.original and not wait_state.modified then
-          vim.schedule(render_everything)
-          vim.api.nvim_del_augroup_by_id(group)
-        end
-      end,
-    })
-  else
+  -- If no virtual files need loading, render immediately
+  if not autocmd_group then
     -- Real files or reused virtual files: Defer until :edit completes
     vim.schedule(render_everything)
   end

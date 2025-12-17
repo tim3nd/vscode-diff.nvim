@@ -167,6 +167,7 @@ describe("Explorer Buffer Management", function()
     -- Switch to Staged view - should still show only "change A"
     view.update(tabpage, config_staged, false)
     ready = h.wait_for_session_ready(tabpage)
+    assert.is_true(ready, "Session should be ready after switching to staged view")
 
     _, modified_buf = lifecycle.get_buffers(tabpage)
     content = h.get_buffer_content(modified_buf)
