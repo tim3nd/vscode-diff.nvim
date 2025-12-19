@@ -5,6 +5,7 @@ local Tree = require("nui.tree")
 local NuiLine = require("nui.line")
 local Split = require("nui.split")
 local config = require("vscode-diff.config")
+local filter = require("vscode-diff.render.explorer.filter")
 
 -- Status symbols and colors
 local STATUS_SYMBOLS = {
@@ -34,6 +35,16 @@ local function get_folder_icon(is_open)
   else
     return icons.folder_closed or defaults.folder_closed, "Directory"
   end
+end
+
+-- Filter files based on explorer.file_filter config
+-- Returns files that should be shown (not ignored)
+local function filter_files(files)
+  local explorer_config = config.options.explorer or {}
+  local file_filter = explorer_config.file_filter or {}
+  local ignore_patterns = file_filter.ignore or {}
+
+  return filter.apply(files, ignore_patterns)
 end
 
 -- Create flat file nodes (list mode)
@@ -177,15 +188,19 @@ local function create_tree_data(status_result, git_root, base_revision)
   local explorer_config = config.options.explorer or {}
   local view_mode = explorer_config.view_mode or "list"
 
+  -- Apply file filter before creating nodes
+  local unstaged_files = filter_files(status_result.unstaged)
+  local staged_files = filter_files(status_result.staged)
+
   local create_nodes = (view_mode == "tree") and create_tree_file_nodes or create_file_nodes
-  local unstaged_nodes = create_nodes(status_result.unstaged, git_root, "unstaged")
-  local staged_nodes = create_nodes(status_result.staged, git_root, "staged")
+  local unstaged_nodes = create_nodes(unstaged_files, git_root, "unstaged")
+  local staged_nodes = create_nodes(staged_files, git_root, "staged")
 
   if base_revision then
     -- Revision mode: single group showing all changes
     return {
       Tree.Node({
-        text = string.format("Changes (%d)", #status_result.unstaged),
+        text = string.format("Changes (%d)", #unstaged_files),
         data = { type = "group", name = "unstaged" },
       }, unstaged_nodes),
     }
@@ -193,11 +208,11 @@ local function create_tree_data(status_result, git_root, base_revision)
     -- Status mode: separate staged/unstaged groups
     return {
       Tree.Node({
-        text = string.format("Changes (%d)", #status_result.unstaged),
+        text = string.format("Changes (%d)", #unstaged_files),
         data = { type = "group", name = "unstaged" },
       }, unstaged_nodes),
       Tree.Node({
-        text = string.format("Staged Changes (%d)", #status_result.staged),
+        text = string.format("Staged Changes (%d)", #staged_files),
         data = { type = "group", name = "staged" },
       }, staged_nodes),
     }
